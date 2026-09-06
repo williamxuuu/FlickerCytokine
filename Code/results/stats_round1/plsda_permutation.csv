@@ -1,0 +1,3 @@
+"subgroup","R2X","R2Y","Q2","p_R2Y_perm","p_Q2_perm","n_perm","n_animals","n_analytes","note"
+"WT",0.554,0.311,-0.526,0.366,0.816,500,20,21,"permutation test on model; NO stats on LV scores"
+"5XFAD",0.62,0.267,-0.0894,0.39,0.252,500,23,21,"permutation test on model; NO stats on LV scores"
