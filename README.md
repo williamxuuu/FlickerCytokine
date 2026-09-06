@@ -1,4 +1,4 @@
-# Analysis package — Prichard flicker manuscript
+# Analysis package: Prichard flicker manuscript
 
 **Manuscript:** "Noninvasive audiovisual neurostimulation differentially alters
 glial responses at 20Hz and 40Hz" (Prichard / Singer lab / Wood lab).
@@ -18,7 +18,7 @@ correlation** statistics and figures from the raw data.
 .
 ├── 7.21.26ManuscriptWilliam.docx     # working manuscript (round-2 numbers)
 ├── Metadata_...SBversionv2.xlsx      # combined per-animal table (also in Raw Data/)
-├── Code/                             # the full pipeline — run from here
+├── Code/                             # the full pipeline, run from here
 │   ├── config.R                      # all knobs: panel, colors, FDR scope, permutations
 │   ├── run_pipeline.R                # runs stages 01-11
 │   ├── scripts/                      # 01_load ... 11_supp_myeloid_exploratory
@@ -56,13 +56,13 @@ Stages 09 and 10 read the PLS-DA model saved by stage 04
 
 ## Where the numbers are
 
-- `Code/results/stats/` — 18 tidy CSVs, one row per statistical test. **These are
+- `Code/results/stats/`: 18 tidy CSVs, one row per statistical test. **These are
   the authoritative values cited in the manuscript.**
-- `Code/results/stats_round1/` — the superseded first-round values, kept for
+- `Code/results/stats_round1/`: the superseded first-round values, kept for
   comparison (has its own README).
-- `Code/results/revised_figures_png/` — 23 corrected data panels for the figures.
-- `Code/results/cytokine|amyloid|morphology|correlations/` — vector PDFs.
-- `Code/results/processed/` — intermediate tables and the saved PLS-DA fits.
+- `Code/results/revised_figures_png/`: 23 corrected data panels for the figures.
+- `Code/results/cytokine|amyloid|morphology|correlations/`: vector PDFs.
+- `Code/results/processed/`: intermediate tables and the saved PLS-DA fits.
 
 ## Two things a reader should know
 
@@ -77,5 +77,5 @@ Figures 1/3/6 and Supplementary 2/3/8 were produced in MATLAB from an export tha
 was never included in the shared data folder. `scripts/08_morphology_stats.R`
 recomputes what it can from the per-cell CSVs in `Raw Data/`, but the published
 H-statistics for those panels cannot be verified without the canonical source.
-Everything else — cytokines, amyloid, PLS-DA, all correlations — reproduces in
+Everything else (cytokines, amyloid, PLS-DA, all correlations) reproduces in
 full.
