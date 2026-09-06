@@ -21,10 +21,11 @@
 
 # --- Paths --------------------------------------------------------------------
 project_root <- normalizePath(".", mustWork = TRUE)
-# PACKAGE LAYOUT: raw inputs live in the sibling "Raw Data/" folder. In the
-# working copy this pointed at "../SARA Temp"; the files are identical, only
-# flattened into clearer subfolders. Nothing else in the pipeline changed.
-data_dir     <- normalizePath(file.path(project_root, "..", "Raw Data"), mustWork = TRUE)
+# PACKAGE LAYOUT: the folders mirror the lab working copy ("SARA Temp/"), so each
+# raw input sits where that folder keeps it rather than in one flat directory.
+# The files are byte-identical to the originals; only these paths changed.
+data_dir     <- normalizePath(file.path(project_root, ".."), mustWork = TRUE)
+apf_dir      <- file.path(data_dir, "Ashley Prichard Flicker Paper 2")
 
 # The one combined per-animal table the original analysis runs off of:
 # metadata + 32 cytokines + amyloid + glial-morphology summaries, one row/mouse.
@@ -35,13 +36,15 @@ combined_range <- "A2:BP47"      # header on row 2, 45 animals (matches original
 # Linear-range (loading-curve) source: 8-point lysate loading series per genotype
 # plus two Background0 wells, 32 analytes. This is the data original/LR Code.R
 # plotted but never scored.
-lr_xlsx    <- file.path(data_dir, "BCA_Analyzed_PrichardSamples_11425_V2.xlsx")
+lr_xlsx    <- file.path(apf_dir, "BCA", "BCA_Analyzed_PrichardSamples_11425_V2.xlsx")
 lr_sheets  <- c(WT = "WT", `5XFAD` = "FAD")
 
 # Per-cell morphology (one row = one cell) for the violin-level comparisons.
 # Two vintages exist; the 08-May-2025 astrocyte set is the newer one.
-morph_dir_astro <- file.path(data_dir, "morphology_astrocyte")
-morph_dir_mg    <- file.path(data_dir, "morphology_microglia")
+morph_dir_astro <- file.path(apf_dir, "Morphology",
+                             "pca_morphology_data_2Dspace",
+                             "pca_morphology_data_2Dspace")
+morph_dir_mg    <- file.path(apf_dir, "mCytokine")   # HPC-CA1_*.csv, as in the lab folder
 
 results_dir <- file.path(project_root, "results")
 cyt_dir     <- file.path(results_dir, "cytokine")     # heatmaps, PLSDA, per-analyte
