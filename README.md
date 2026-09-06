@@ -76,6 +76,6 @@ and the original paths are noted in a comment there.
 Figures 1/3/6 and Supplementary 2/3/8 were produced in MATLAB from an export that
 was never included in the shared data folder. `scripts/08_morphology_stats.R`
 recomputes what it can from the per-cell CSVs in `Raw Data/`, but the published
-H-statistics for those panels cannot be verified without the canonical source.
-Everything else (cytokines, amyloid, PLS-DA, all correlations) reproduces in
-full.
+H-statistics for those panels cannot be verified without that original MATLAB
+export. Everything else (cytokines, amyloid, PLS-DA, all correlations)
+reproduces in full.
