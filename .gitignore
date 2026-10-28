@@ -1,3 +1,16 @@
+# Code only. Data, statistics and figure outputs are generated locally and are
+# never committed: the raw workbook and everything derived from it stay private.
+data/*
+!data/raw/
+data/raw/*
+!data/raw/README.md
+stats/
+figures/*
+!figures/MANIFEST.md
+*.xlsx
+*.csv
+*.rds
+
 .DS_Store
 .Rhistory
 .RData
