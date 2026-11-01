@@ -26,7 +26,8 @@ STATS_STAGES <- c(
   "02_plsda.R",             # THE HUB: model -> key cytokines
   "05_correlations.R",      # cytokine ~ amyloid / morphology
   "06_group_stats.R",       # flicker group comparisons
-  "08_mixed_model.R")       # cross-check: raw values, Sex + (1|litter) in the model
+  "08_mixed_model.R",       # cross-check: raw values, Sex + (1|litter) in the model
+  "09_corr_selection.R")    # cytokine ~ morphology: key vs most flicker-responsive
 
 FIGURE_STAGES <- c(
   "10_fig2.R",              # WT heatmap, PLS-DA scores + violins, loadings

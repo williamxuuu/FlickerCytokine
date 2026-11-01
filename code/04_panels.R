@@ -99,7 +99,7 @@ ms_heatmap <- function(g, figure, stem, annot = character(), width = 12.2, heigh
     scale_x_discrete(expand = c(0, 0)) + scale_y_discrete(expand = c(0, 0)) +
     labs(title = "Inflammatory Cytokines and Chemokine Profile", x = NULL, y = NULL) +
     theme_ms(11) +
-    theme(axis.text.x = element_text(angle = 90, hjust = 1, vjust = 0.5, size = 8, colour = INK),
+    theme(axis.text.x = element_text(angle = 90, hjust = 1, vjust = 0.5, size = 10, colour = INK),
           axis.text.y = element_blank(), axis.ticks.y = element_blank(),
           axis.line = element_blank(), panel.grid = element_blank(),
           panel.spacing.y = unit(1.6, "pt"),
@@ -158,7 +158,7 @@ ms_heatmap <- function(g, figure, stem, annot = character(), width = 12.2, heigh
 
   # Each annotation bar is stacked tiles with literal fills, so it needs no
   # scale of its own and renders the same on ragg and base pdf.
-  y_bot <- -2.6
+  y_bot <- -3.1
   for (nm in names(ab_keys)) {
     k <- ab_keys[[nm]]
     nseg <- 48; h <- 2.6
@@ -179,12 +179,12 @@ ms_heatmap <- function(g, figure, stem, annot = character(), width = 12.2, heigh
   }
 
   y_lo <- if (length(ab_keys)) y_bot else -2.0
-  leg <- leg + scale_x_continuous(limits = c(-0.3, if (length(ab_keys)) 2.6 else 2.1)) +
+  leg <- leg + scale_x_continuous(limits = c(-0.3, 2.9)) +
     scale_y_continuous(limits = c(y_lo, 4.4)) + theme_void()
 
   save_fig((strip | hm | leg) +
              plot_layout(widths = c(0.035 + 0.018 * length(annot), 1,
-                                    0.085 + 0.045 * length(ab_keys))),
+                                    0.13 + 0.03 * length(ab_keys))),
            figure, stem, width, height)
 }
 
@@ -257,8 +257,48 @@ ms_violin_plot <- function(g, cc, k) {
     theme(panel.grid.major = element_blank(), panel.grid.minor = element_blank(),
           panel.border = element_rect(colour = "black", fill = NA, linewidth = 0.7),
           axis.line = element_blank(),
-          axis.text.x = element_text(angle = 45, hjust = 1, size = 8.5, colour = INK),
-          axis.title.y = element_text(size = 8.5, colour = INK))
+          axis.text.x = element_text(angle = 45, hjust = 1, size = 9.5, colour = INK),
+          axis.title.y = element_text(size = 9.5, colour = INK))
+}
+
+# --- LV1 scores by group, NO STATISTICS (Fig 2E / Supp 4E) ------------------
+# Our version of Garza et al. Fig 1E ("LV1 Scores by Groups"): one point per
+# animal, a black mean line with SEM whiskers, a dotted line at zero, y-axis
+# symmetric about zero. Garza bracket their groups with p-values; this panel
+# does not, for the same reason the violins do not (see header).
+ms_lv_groups_plot <- function(g, cc, k = 1) {
+  cols <- pal(g)
+  r2 <- round(cc$r2x * 100, 1)
+  v  <- data.frame(y = cc$scores[, k], Flicker = factor(cc$flicker, levels = MS_XORDER),
+                   Sex = factor(cc$sex, levels = SEXES))
+  mu <- do.call(rbind, lapply(split(v$y, v$Flicker), function(z)
+          data.frame(m = mean(z), se = stats::sd(z) / sqrt(length(z)))))
+  mu$Flicker <- factor(rownames(mu), levels = MS_XORDER)
+  lim <- max(abs(v$y)) * 1.08
+
+  ggplot(v, aes(Flicker, y)) +
+    geom_hline(yintercept = 0, colour = INK2, linewidth = 0.45, linetype = "dotted") +
+    geom_point(aes(fill = Flicker, shape = Sex), colour = "black", size = 2.6, stroke = 0.45,
+               position = position_jitter(width = 0.13, height = 0, seed = 1)) +
+    geom_errorbar(data = mu, aes(x = Flicker, ymin = m - se, ymax = m + se),
+                  width = 0.22, linewidth = 0.5, colour = "black", inherit.aes = FALSE) +
+    geom_errorbar(data = mu, aes(x = Flicker, ymin = m, ymax = m),
+                  width = 0.46, linewidth = 0.7, colour = "black", inherit.aes = FALSE) +
+    scale_fill_manual(values = cols, guide = "none") +
+    scale_shape_manual(values = SEX_SHAPE, name = "Sex") +
+    guides(shape = guide_legend(override.aes = list(fill = "grey40", colour = "black", size = 2.6))) +
+    scale_x_discrete(labels = MS_PRETTY[MS_XORDER]) +
+    scale_y_continuous(limits = c(-lim, lim)) +
+    labs(title = sprintf("LV%d Scores by Group", k), x = NULL,
+         y = sprintf("Scores on LV%d (%.1f%%)", k, r2[k])) +
+    theme_ms(11) +
+    theme(plot.title = element_text(hjust = 0.5),
+          panel.grid.major = element_blank(), panel.grid.minor = element_blank(),
+          panel.border = element_rect(colour = "black", fill = NA, linewidth = 0.7),
+          axis.line = element_blank(),
+          axis.text.x = element_text(angle = 45, hjust = 1, colour = INK),
+          axis.title.y = element_text(colour = INK),
+          legend.position = "right")
 }
 
 # --- loadings --------------------------------------------------------------
@@ -284,7 +324,7 @@ ms_loading_plot <- function(g, cc, k) {
     labs(title = sprintf("Signals in LV%d", k), x = NULL, y = NULL) +
     theme_ms(11) +
     theme(plot.title = element_text(hjust = 0.5),
-          axis.text.x = element_text(angle = 90, hjust = 1, vjust = 0.5, size = 8, colour = INK),
+          axis.text.x = element_text(angle = 90, hjust = 1, vjust = 0.5, size = 10, colour = INK),
           panel.grid.major = element_blank(), panel.grid.minor = element_blank(),
           axis.line.y = element_line(colour = "black", linewidth = 0.4))
 }
@@ -308,5 +348,7 @@ ms_plsda <- function(g, figure, stems) {
   save_fig((sco | vio) + plot_layout(widths = c(1.85, 1)),
            figure, stems$composite, 8.3, 5.0)
 
-  for (k in 1:2) save_fig(ms_loading_plot(g, cc, k), figure, sprintf(stems$loadings, k), 6.2, 4.4)
+  for (k in 1:2) save_fig(ms_loading_plot(g, cc, k), figure, sprintf(stems$loadings, k), 7.4, 4.4)
+
+  save_fig(ms_lv_groups_plot(g, cc, 1), figure, stems$lv1_groups, 4.2, 4.4)
 }

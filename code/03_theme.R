@@ -68,11 +68,32 @@ zlab <- function(v) paste0(v, " (z-score)")
 # letters or arrows (rho, beta, up-arrow all fail; em/en dashes are silently
 # swapped for hyphens). Every figure string is kept ASCII-safe, or built with
 # plotmath, so the PDF is glyph-identical to the PNG.
-save_fig <- function(plot, figure, stem, width, height) {
-  f <- fig_path(figure, stem)
+#
+# SVG is the Illustrator copy (PI request, 2026-11). svglite keeps every label
+# as live <text>, so it stays editable; fix_text_size = FALSE drops the
+# textLength attribute, which otherwise stretches text when Illustrator
+# substitutes a font. SVG is vector and has no dpi of its own -- sizes are
+# written in points (72 per inch), so the artboard opens at the physical size
+# below; set Illustrator's raster effects to 300 ppi to match the PNGs.
+#
+# FIG_SCALE shrinks the canvas while every font, point and line keeps its size
+# in points, so text fills more of each panel (PI request, 2026-11: larger font
+# relative to the figure, less white space). One knob for every figure; the
+# width/height each stage passes are the pre-2026-11 canvas.
+FIG_SCALE <- 0.72
+
+write_fig <- function(plot, f, width, height) {
+  width <- width * FIG_SCALE; height <- height * FIG_SCALE
   ggsave(paste0(f, ".png"), plot, width = width, height = height, dpi = DPI,
          device = ragg::agg_png, bg = SURFACE)
   grDevices::pdf(paste0(f, ".pdf"), width = width, height = height, bg = SURFACE)
   print(plot); invisible(grDevices::dev.off())
-  cat(sprintf("     -> %s/%s.{png,pdf}\n", figure, stem))
+  svglite::svglite(paste0(f, ".svg"), width = width, height = height, bg = SURFACE,
+                   fix_text_size = FALSE)
+  print(plot); invisible(grDevices::dev.off())
+}
+
+save_fig <- function(plot, figure, stem, width, height) {
+  write_fig(plot, fig_path(figure, stem), width, height)
+  cat(sprintf("     -> %s/%s.{png,pdf,svg}\n", figure, stem))
 }

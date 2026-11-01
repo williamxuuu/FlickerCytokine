@@ -32,13 +32,13 @@ Rscript run_all.R stats      # statistics only
 Rscript run_all.R figures    # figures only (statistics must already exist)
 ```
 
-**Requirements.** R 4.5.2 and fifteen packages — every one of them actually
+**Requirements.** R 4.5.2 and sixteen packages — every one of them actually
 loaded by the code, nothing carried along (lmerTest, lme4, emmeans and car are
 used only by the stage-08 mixed-model cross-check):
 
 ```r
 install.packages(c("tidyverse", "readxl", "matrixStats", "ggplot2", "patchwork",
-                   "ggnewscale", "scales", "ragg", "rstatix", "nortest",
+                   "ggnewscale", "scales", "ragg", "svglite", "rstatix", "nortest",
                    "lmerTest", "lme4", "emmeans", "car"))
 BiocManager::install("ropls")          # Bioconductor
 ```
@@ -66,6 +66,7 @@ changed. The seed is fixed at 42, so the same input reproduces the same values.
 │   ├── 06_group_stats.R   flicker group comparisons
 │   ├── 07_figure_helpers.R Fig 4 / Fig 5 panel language
 │   ├── 08_mixed_model.R   cross-check: sex + litter in the model, raw values
+│   ├── 09_corr_selection.R cytokine ~ morphology: key vs most flicker-responsive
 │   ├── 10_fig2.R … 16_supp7.R   one stage per manuscript figure
 │   ├── 17_data_folders.R  re-files the results by topic into data/ (runs last)
 │   ├── lib/stats_helpers.R      the flicker group comparison
@@ -80,7 +81,7 @@ changed. The seed is fixed at 42, so the same input reproduces the same values.
 │   ├── morphology/        per-animal glial summaries (no group stats; see Known limits)
 │   └── correlations/      rho tables, the BH q < 0.05 pairs, one scatter per pair + plots
 ├── stats/                 every statistic as a tidy CSV
-└── figures/               manuscript-ready panels, 300 dpi PNG + vector PDF
+└── figures/               manuscript-ready panels, 300 dpi PNG, vector PDF, editable SVG
 ```
 
 **Every file in `code/` runs.** There is no dead code, no unused helper and no
@@ -240,6 +241,17 @@ evidence the correction is doing its job, and it is a result worth stating.
 GM-CSF ~ Abeta 42 now passes both corrections (it passed BH but failed WY at
 p = 0.25 before the z-score). Read it with its resolution columns: **5 distinct
 values, 33% ties**.
+
+### Correlations by selection rule (stage 09, 2026-11)
+
+Stage 05 correlates all 28 analytes with every target, so choosing a different
+analyte set changes no rho or p, only the multiplicity family. Stage 09 puts the
+PLS-DA key cytokines next to the six most flicker-responsive analytes (smallest
+omnibus p) on the four figure targets. The responsive set is not stronger: WT
+has 0 nominal hits (key: 2), 5xFAD has 4 (key: 3), and one pair (5xFAD MIG ~
+microglia number) clears BH across the 28 but fails Westfall-Young (p = 0.18).
+The pairs that pass both corrections (IL-3, IL-15, Eotaxin, IL-10 ~ microglia
+number) are in neither set. See `stats/corr_morphology_by_selection.csv`.
 
 ---
 

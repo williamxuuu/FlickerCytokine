@@ -112,7 +112,8 @@ bar_panel <- function(d, v, g, om, ph, title_expr = v, ylab = NULL,
     if (!all_brackets) s <- s[s$p_adj < 0.05, , drop = FALSE]
     if (nrow(s)) {
       x1 <- match(s$group1, FLICKER_LEVELS); x2 <- match(s$group2, FLICKER_LEVELS)
-      lvl <- ifelse(abs(x2 - x1) == 1, 0.19, 0.075)     # adjacent up, span down
+      # adjacent up, span down; spaced for FIG_SCALE so the labels clear each other
+      lvl <- ifelse(abs(x2 - x1) == 1, 0.33, 0.10)
       yb  <- top + span * lvl
       tick <- span * 0.018
       # A pairwise star is only earned behind a significant omnibus: with the
@@ -138,8 +139,8 @@ bar_panel <- function(d, v, g, om, ph, title_expr = v, ylab = NULL,
 
   # breaks are chosen on the DATA range, not the bracket headroom, so the axis
   # keeps the published tick density instead of coarsening.
-  p + coord_cartesian(ylim = c(base, top + span * 0.10), clip = "off") +
-    scale_y_continuous(breaks = scales::breaks_pretty(n = 5)(c(base, data_top)),
+  p + coord_cartesian(ylim = c(base, top + span * 0.17), clip = "off") +
+    scale_y_continuous(breaks = scales::breaks_pretty(n = 4)(c(base, data_top)),
                        expand = expansion(mult = c(0.01, 0))) +
     theme_fig4(11) +
     theme(axis.text.x = element_text(angle = 45, hjust = 1, vjust = 1,
@@ -158,8 +159,9 @@ scat <- function(d, xv, yv, xlab, ylab, g, rho, p, q = NA, ribbon = TRUE,
                  ann_pos = "above", k = NA) {
   cols <- pal(g)
   kn <- if (!is.na(k) && k <= 6) sprintf("  [%d levels]", k) else ""
+  # two lines, so neighbouring panels' statistics cannot run into each other
   ann <- sprintf("rho = %.2f  p = %s%s%s", rho, fmt_p(p),
-                 if (is.na(q)) "" else sprintf("  q = %s%s", signif(q, 3), stars(q)), kn)
+                 if (is.na(q)) "" else sprintf("\nq = %s%s", signif(q, 3), stars(q)), kn)
   ggplot(d, aes(.data[[xv]], .data[[yv]])) +
     geom_smooth(method = "lm", formula = y ~ x, se = ribbon, colour = "black",
                 fill = "grey80", linewidth = 0.5, linetype = "dashed", alpha = 0.55) +
@@ -180,7 +182,7 @@ scat <- function(d, xv, yv, xlab, ylab, g, rho, p, q = NA, ribbon = TRUE,
          title    = if (ann_pos == "inside") stars(q) else NULL) +
     (if (ann_pos == "inside")
        annotate("text", x = -Inf, y = Inf, hjust = -0.08, vjust = 1.5,
-                label = sprintf("rho = %.2g, p = %s%s", rho, fmt_p(p), kn),
+                label = sprintf("rho = %.2g, p = %s%s", rho, fmt_p(p), sub("^  ", "\n", kn)),
                 size = 2.8, fontface = "italic", colour = INK)
      else NULL) +
     theme_ms(10) +
@@ -197,7 +199,12 @@ scat <- function(d, xv, yv, xlab, ylab, g, rho, p, q = NA, ribbon = TRUE,
 # ---------------------------------------------------------------------------
 # Composition helpers
 # ---------------------------------------------------------------------------
+# Subtitles are wrapped to the final (FIG_SCALE'd) width so they never run off
+# the canvas; ~15 characters per inch at the 8.4 pt subtitle size.
+wrap_sub <- function(x, w) paste(strwrap(x, width = floor(15 * w * FIG_SCALE)), collapse = "\n")
+
 row_fig <- function(panels, title, subtitle, figure, stem, w, h, nrow = 1) {
+  subtitle <- wrap_sub(subtitle, w)
   p <- patchwork::wrap_plots(panels, nrow = nrow, guides = "collect") +
     patchwork::plot_annotation(title = title, subtitle = subtitle,
       theme = theme_ms() + theme(plot.title = element_text(size = 15),
@@ -208,8 +215,9 @@ row_fig <- function(panels, title, subtitle, figure, stem, w, h, nrow = 1) {
 }
 
 grid_fig <- function(panels, title, subtitle, figure, stem, ncol,
-                     panel_w = 2.8, panel_h = 3.1) {
+                     panel_w = 2.8, panel_h = 3.6) {
   nr <- ceiling(length(panels) / ncol)
+  subtitle <- wrap_sub(subtitle, panel_w * ncol + 1.2)
   p <- patchwork::wrap_plots(panels, ncol = ncol, guides = "collect") +
     patchwork::plot_annotation(title = title, subtitle = subtitle,
       theme = theme_ms(12) +

@@ -12,6 +12,7 @@
 #       sampled from that panel's colour bars.
 #   4B  PLS-DA scores (+ the score violins, no statistics).
 #   4C / 4D  Signals in LV1 / LV2.
+#   4E  LV1 scores by group, NO statistics (our version of Garza et al. Fig 1E).
 #
 # WORTH KNOWING. The published caption is "Flicker reduces expression of IL5 in
 # 5xFAD mice", but IL-5 is one of the four analytes the >80%-above-background
@@ -34,6 +35,7 @@ ms_plsda("5XFAD", "Supp4", list(
   scores    = "Supp4B_plsda_scores_5XFAD",
   violins   = "Supp4B_plsda_violins_5XFAD",
   composite = "Supp4B_plsda_composite_5XFAD",
-  loadings  = "Supp4CD_loadings_5XFAD_LV%d"))
+  loadings  = "Supp4CD_loadings_5XFAD_LV%d",
+  lv1_groups = "Supp4E_LV1_scores_by_group_5XFAD"))
 
 cat("[13] Supplementary Figure 4 done\n")

@@ -57,8 +57,8 @@ put_csv <- function(df, dir, name) {
 }
 put_stats <- function(dir, files) for (f in files)
   stopifnot(file.copy(file.path(STATS, f), file.path(dir, f), overwrite = TRUE))
-# copy a figures/ panel (png + pdf) into <topic>/plots/
-put_plots <- function(dir, figure, stems) for (s in stems) for (ext in c(".png", ".pdf"))
+# copy a figures/ panel (png + pdf + svg) into <topic>/plots/
+put_plots <- function(dir, figure, stems) for (s in stems) for (ext in c(".png", ".pdf", ".svg"))
   stopifnot(file.copy(paste0(fig_path(figure, s), ext),
                       file.path(dir, "plots", paste0(s, ext)), overwrite = TRUE))
 values <- function(tbl, cols, genos = GENOTYPES) {
@@ -102,9 +102,11 @@ put_csv(do.call(rbind, lapply(GENOTYPES, function(g) {
 })), d, "plsda_model_summary.csv")
 
 put_plots(d, "Fig2", c("Fig2B_heatmap_WT", "Fig2C_plsda_composite_WT",
-                       "Fig2D_loadings_WT_LV1", "Fig2D_loadings_WT_LV2"))
+                       "Fig2D_loadings_WT_LV1", "Fig2D_loadings_WT_LV2",
+                       "Fig2E_LV1_scores_by_group_WT"))
 put_plots(d, "Supp4", c("Supp4A_heatmap_5XFAD", "Supp4B_plsda_composite_5XFAD",
-                        "Supp4CD_loadings_5XFAD_LV1", "Supp4CD_loadings_5XFAD_LV2"))
+                        "Supp4CD_loadings_5XFAD_LV1", "Supp4CD_loadings_5XFAD_LV2",
+                        "Supp4E_LV1_scores_by_group_5XFAD"))
 put_plots(d, "Supp5", c("Supp5_key_cytokines_WT", "Supp5_key_cytokines_5XFAD"))
 put_plots(d, "Supp6", c("Supp6A_cytokine_profiling_WT", "Supp6B_cytokine_profiling_5XFAD"))
 
@@ -123,7 +125,8 @@ put_csv(values(ANIMALS,     MORPH_TARGETS), d, "morphology_values_sex_zscored.cs
 
 # ============================== correlations ================================
 d <- topic_dir("correlations")
-put_stats(d, c("corr_cytokine_amyloid.csv", "corr_cytokine_morphology.csv"))
+put_stats(d, c("corr_cytokine_amyloid.csv", "corr_cytokine_morphology.csv",
+               "corr_morphology_by_selection.csv"))
 CR <- list(cytokine_amyloid    = read.csv(file.path(STATS, "corr_cytokine_amyloid.csv"),
                                           check.names = FALSE),
            cytokine_morphology = read.csv(file.path(STATS, "corr_cytokine_morphology.csv"),
@@ -143,10 +146,7 @@ for (i in seq_len(nrow(sig))) {
         theme(plot.title = element_text(size = 10, face = "bold"))
   f <- file.path(sd, gsub("[^A-Za-z0-9.()-]+", "_",
                           sprintf("%s_%s_vs_%s", r$subgroup, r$analyte, r$target)))
-  ggsave(paste0(f, ".png"), p, width = 5.2, height = 4.2, dpi = DPI,
-         device = ragg::agg_png, bg = SURFACE)
-  grDevices::pdf(paste0(f, ".pdf"), width = 5.2, height = 4.2, bg = SURFACE)
-  print(p); invisible(grDevices::dev.off())
+  write_fig(p, f, 5.2, 4.2)
 }
 cat(sprintf("     -> correlations/: %d per-pair scatters (BH q < 0.05)\n", nrow(sig)))
 
