@@ -30,7 +30,7 @@ source(file.path(HERE, "03_theme.R"))
 source(file.path(HERE, "04_panels.R"))
 
 ms_heatmap("5XFAD", "Supp4", "Supp4A_heatmap_5XFAD", annot = c("Abeta 42", "Abeta 40"),
-           col_order = "lv1")   # columns follow Supp 4C LV1
+           col_order = "lv1", height = 8.6)   # taller: the legend carries two Abeta bars   # columns follow Supp 4C LV1
 ms_plsda("5XFAD", "Supp4", list(
   scores    = "Supp4B_plsda_scores_5XFAD",
   violins   = "Supp4B_plsda_violins_5XFAD",

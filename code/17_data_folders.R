@@ -146,7 +146,7 @@ for (i in seq_len(nrow(sig))) {
         theme(plot.title = element_text(size = 10, face = "bold"))
   f <- file.path(sd, gsub("[^A-Za-z0-9.()-]+", "_",
                           sprintf("%s_%s_vs_%s", r$subgroup, r$analyte, r$target)))
-  write_fig(p, f, 5.2, 4.2)
+  write_fig(p, f, 6.4, 5.4)
 }
 cat(sprintf("     -> correlations/: %d per-pair scatters (BH q < 0.05)\n", nrow(sig)))
 

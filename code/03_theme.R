@@ -80,7 +80,7 @@ zlab <- function(v) paste0(v, " (z-score)")
 # in points, so text fills more of each panel (PI request, 2026-11: larger font
 # relative to the figure, less white space). One knob for every figure; the
 # width/height each stage passes are the pre-2026-11 canvas.
-FIG_SCALE <- 0.72
+FIG_SCALE <- 0.60
 
 write_fig <- function(plot, f, width, height) {
   width <- width * FIG_SCALE; height <- height * FIG_SCALE

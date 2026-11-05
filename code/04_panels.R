@@ -72,7 +72,7 @@ ms_rows <- function(g) {
 # ascending, so they line up left-to-right with the "Signals in LV1" panel
 # (collaborator request for Figure 2B).
 # ---------------------------------------------------------------------------
-ms_heatmap <- function(g, figure, stem, annot = character(), width = 12.2, height = 5.4,
+ms_heatmap <- function(g, figure, stem, annot = character(), width = 15.5, height = 6.4,
                        col_order = c("cluster", "lv1")) {
   col_order <- match.arg(col_order)
   cols <- pal(g)
@@ -149,12 +149,12 @@ ms_heatmap <- function(g, figure, stem, annot = character(), width = 12.2, heigh
   ks <- data.frame(y = c(-0.6, -1.4), lab = c("M", "F"), fill = c("black", "white"))
   leg <- ggplot() +
     geom_point(data = kf, aes(0, y), colour = kf$col, size = 4) +
-    geom_text(data = kf, aes(0.28, y, label = lab), hjust = 0, size = 3.2, colour = INK) +
+    geom_text(data = kf, aes(0.28, y, label = lab), hjust = 0, size = 3.7, colour = INK) +
     annotate("text", x = 0, y = 4.0, label = "Flicker", hjust = 0, fontface = "bold",
-             size = 3.5, colour = INK) +
+             size = 4.0, colour = INK) +
     geom_tile(data = ks, aes(0, y), fill = ks$fill, colour = "black",
               width = 0.34, height = 0.55, linewidth = 0.3) +
-    geom_text(data = ks, aes(0.28, y, label = lab), hjust = 0, size = 3.2, colour = INK)
+    geom_text(data = ks, aes(0.28, y, label = lab), hjust = 0, size = 3.7, colour = INK)
 
   # Each annotation bar is stacked tiles with literal fills, so it needs no
   # scale of its own and renders the same on ragg and base pdf.
@@ -180,11 +180,13 @@ ms_heatmap <- function(g, figure, stem, annot = character(), width = 12.2, heigh
 
   y_lo <- if (length(ab_keys)) y_bot else -2.0
   leg <- leg + scale_x_continuous(limits = c(-0.3, 2.9)) +
-    scale_y_continuous(limits = c(y_lo, 4.4)) + theme_void()
+    scale_y_continuous(limits = c(y_lo, 4.4)) + coord_cartesian(clip = "off") + theme_void()
 
+  # legend column has a FIXED physical width, so its text cannot clip however
+  # the canvas is scaled (03_theme.R FIG_SCALE)
   save_fig((strip | hm | leg) +
-             plot_layout(widths = c(0.035 + 0.018 * length(annot), 1,
-                                    0.13 + 0.03 * length(ab_keys))),
+             plot_layout(widths = unit(c(0.035 + 0.018 * length(annot), 1, 1.35),
+                                       c("null", "null", "in"))),
            figure, stem, width, height)
 }
 
@@ -218,7 +220,7 @@ ms_scores_plot <- function(g, cc) {
            shape = guide_legend(order = 2,
                      override.aes = list(fill = "grey40", colour = "black", size = 3.4))) +
     labs(title = "PLSDA",
-         subtitle = sprintf("%d analytes - LOOCV %.0f%% vs %.0f%% chance - permutation p = %.2f",
+         subtitle = sprintf("%d analytes; LOOCV %.0f%% vs %.0f%% chance\npermutation p = %.2f",
                             length(cc$analytes), 100 * cc$obs, 100/3, cc$pperm),
          x = sprintf("Scores on LV1 (%.1f%%)", r2[1]),
          y = sprintf("Scores on LV2 (%.1f%%)", r2[2])) +
@@ -252,7 +254,7 @@ ms_violin_plot <- function(g, cc, k) {
                size = 1.9, colour = "black") +
     scale_fill_manual(values = cols, guide = "none") +
     scale_x_discrete(labels = MS_PRETTY[MS_XORDER]) +
-    labs(x = NULL, y = sprintf("Scores on LV%d (%.1f%%)", k, r2[k])) +
+    labs(x = NULL, y = sprintf("Scores on LV%d\n(%.1f%%)", k, r2[k])) +
     theme_ms(10) +
     theme(panel.grid.major = element_blank(), panel.grid.minor = element_blank(),
           panel.border = element_rect(colour = "black", fill = NA, linewidth = 0.7),
@@ -278,7 +280,7 @@ ms_lv_groups_plot <- function(g, cc, k = 1) {
 
   ggplot(v, aes(Flicker, y)) +
     geom_hline(yintercept = 0, colour = INK2, linewidth = 0.45, linetype = "dotted") +
-    geom_point(aes(fill = Flicker, shape = Sex), colour = "black", size = 2.6, stroke = 0.45,
+    geom_point(aes(fill = Flicker, shape = Sex), colour = "black", size = 3.0, stroke = 0.45,
                position = position_jitter(width = 0.13, height = 0, seed = 1)) +
     geom_errorbar(data = mu, aes(x = Flicker, ymin = m - se, ymax = m + se),
                   width = 0.22, linewidth = 0.5, colour = "black", inherit.aes = FALSE) +
@@ -290,14 +292,15 @@ ms_lv_groups_plot <- function(g, cc, k = 1) {
     scale_x_discrete(labels = MS_PRETTY[MS_XORDER]) +
     scale_y_continuous(limits = c(-lim, lim)) +
     labs(title = sprintf("LV%d Scores by Group", k), x = NULL,
-         y = sprintf("Scores on LV%d (%.1f%%)", k, r2[k])) +
-    theme_ms(11) +
+         y = sprintf("Scores on LV%d\n(%.1f%%)", k, r2[k])) +
+    theme_ms(14) +
     theme(plot.title = element_text(hjust = 0.5),
           panel.grid.major = element_blank(), panel.grid.minor = element_blank(),
           panel.border = element_rect(colour = "black", fill = NA, linewidth = 0.7),
           axis.line = element_blank(),
-          axis.text.x = element_text(angle = 45, hjust = 1, colour = INK),
-          axis.title.y = element_text(colour = INK),
+          axis.text = element_text(size = 13, colour = INK),
+          axis.text.x = element_text(angle = 45, hjust = 1),
+          axis.title.y = element_text(size = 14, colour = INK),
           legend.position = "right")
 }
 
@@ -317,9 +320,10 @@ ms_loading_plot <- function(g, cc, k) {
     geom_hline(yintercept = 0, colour = "black", linewidth = 0.4) +
     geom_col(fill = "#BDD7EE", colour = "black", linewidth = 0.3, width = 0.72) +
     scale_y_continuous(limits = c(-1, 1), breaks = seq(-1, 1, 0.5), expand = c(0, 0)) +
-    annotate("text", x = 0.6, y = 0.85, hjust = 0, size = 3.1, colour = INK,
+    # bars ascend left to right, so top-left and bottom-right are always empty
+    annotate("text", x = 0.6, y = 0.92, hjust = 0, size = 4.2, colour = INK,
              label = MS_PRETTY[[ends[["hi"]]]]) +
-    annotate("text", x = 0.6, y = -0.85, hjust = 0, size = 3.1, colour = INK,
+    annotate("text", x = length(v) + 0.4, y = -0.92, hjust = 1, size = 4.2, colour = INK,
              label = MS_PRETTY[[ends[["lo"]]]]) +
     labs(title = sprintf("Signals in LV%d", k), x = NULL, y = NULL) +
     theme_ms(11) +
@@ -338,17 +342,17 @@ ms_plsda <- function(g, figure, stems) {
   cc <- readRDS(file.path(STATS, sprintf("plsda_%s.rds", g)))
 
   sco <- ms_scores_plot(g, cc)
-  save_fig(sco, figure, stems$scores, 5.4, 5.0)
+  save_fig(sco, figure, stems$scores, 7.6, 6.6)
 
   v1 <- ms_violin_plot(g, cc, 1); v2 <- ms_violin_plot(g, cc, 2)
   vio <- (v1 / v2) + plot_layout(heights = c(1, 1))
-  save_fig(vio, figure, stems$violins, 2.9, 5.0)
+  save_fig(vio, figure, stems$violins, 4.4, 8.0)
 
   # published layout: scores on the left, the two violins stacked to the right
   save_fig((sco | vio) + plot_layout(widths = c(1.85, 1)),
-           figure, stems$composite, 8.3, 5.0)
+           figure, stems$composite, 12.0, 8.0)
 
-  for (k in 1:2) save_fig(ms_loading_plot(g, cc, k), figure, sprintf(stems$loadings, k), 7.4, 4.4)
+  for (k in 1:2) save_fig(ms_loading_plot(g, cc, k), figure, sprintf(stems$loadings, k), 10.0, 5.4)
 
-  save_fig(ms_lv_groups_plot(g, cc, 1), figure, stems$lv1_groups, 4.2, 4.4)
+  save_fig(ms_lv_groups_plot(g, cc, 1), figure, stems$lv1_groups, 6.6, 6.6)
 }

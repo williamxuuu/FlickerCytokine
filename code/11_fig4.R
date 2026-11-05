@@ -44,7 +44,7 @@ fig4b <- wrap_plots(ps, ncol = 2, guides = "collect") +
                                       hjust = 0, colour = INK, margin = margin(b = 4))))
 fig4b <- fig4b & theme(legend.position = "right",
                        legend.text = element_text(family = MS_FONT, size = 9, colour = INK))
-save_fig(fig4b, "Fig4", "Fig4B_amyloid_bars", 7.4, 4.6)
+save_fig(fig4b, "Fig4", "Fig4B_amyloid_bars", 8.6, 5.6)
 
 # ============================ Fig 4C — rho heatmap ==========================
 CA <- read.csv(file.path(STATS, "corr_cytokine_amyloid.csv"), check.names = FALSE)
@@ -76,7 +76,7 @@ fig4c <- ggplot(h, aes(target, analyte, fill = rho)) +
                    labels = c(ab_lab("Abeta 40", ""), ab_lab("Abeta 42", ""))) +
   scale_y_discrete(expand = c(0, 0)) +
   labs(title = "Spearman Correlation\nCytokines vs Pathology Markers", x = NULL, y = NULL,
-       caption = "* q < 0.05, ** q < 0.01, *** q < 0.001, Benjamini-Hochberg across the 28-analyte panel") +
+       caption = "* q < 0.05, ** q < 0.01, *** q < 0.001\nBenjamini-Hochberg across the 28-analyte panel") +
   theme_fig4(11) +
   theme(panel.border = element_blank(), axis.ticks = element_blank(),
         axis.text.y = element_text(hjust = 1, face = "plain", size = 10, colour = "black"),

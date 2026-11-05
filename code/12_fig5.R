@@ -60,7 +60,7 @@ for (cfg in list(list(v = AST_TILE, lab = "Astrocyte Average\nDistance to Neares
     scat(fad, cfg$v, ab, cfg$lab, ab_lab(ab), "5XFAD", s$rho, s$p)
   })
   row_fig(ps, cfg$ttl, "sex z-scored; permutation Spearman, B = 50,000",
-          "Fig5", cfg$stem, 7.6, 4.2)
+          "Fig5", cfg$stem, 9.8, 5.6)
 }
 
 # ============================ Fig 5C / 5D ===================================
@@ -83,7 +83,7 @@ for (cfg in list(list(v = AST_N, lab = "Average Number of Astrocytes",
   sub <- sprintf(paste("PLS-DA key cytokines (top 3 on LV1 and LV2);",
                        "BH q across the %d-analyte family, best q here = %.3g"),
                  length(PANEL), best)
-  grid_fig(ps, cfg$ttl, sub, "Fig5", cfg$stem, ncol = 3, panel_w = 3.1, panel_h = 3.3)
+  grid_fig(ps, cfg$ttl, sub, "Fig5", cfg$stem, ncol = 3, panel_w = 4.0, panel_h = 4.4)
 }
 
 cat("[12] Figure 5 done\n")

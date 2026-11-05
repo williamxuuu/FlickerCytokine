@@ -50,7 +50,7 @@ for (cfg in list(
                        "%d-analyte family, best q here = %.2f%s"),
                  length(PANEL), best,
                  if (best >= 0.05) " - nothing reaches q < 0.05, so no panel is starred" else "")
-  grid_fig(ps, cfg$ttl, sub, "Supp7", cfg$stem, ncol = 3, panel_w = 3.1, panel_h = 3.3)
+  grid_fig(ps, cfg$ttl, sub, "Supp7", cfg$stem, ncol = 3, panel_w = 4.0, panel_h = 4.4)
   cat(sprintf("[16] %-34s best q = %.3f\n", cfg$stem, best))
 }
 cat("[16] Supplementary Figure 7 done\n")

@@ -139,7 +139,7 @@ bar_panel <- function(d, v, g, om, ph, title_expr = v, ylab = NULL,
 
   # breaks are chosen on the DATA range, not the bracket headroom, so the axis
   # keeps the published tick density instead of coarsening.
-  p + coord_cartesian(ylim = c(base, top + span * 0.17), clip = "off") +
+  p + coord_cartesian(ylim = c(base, top + span * 0.30), clip = "off") +
     scale_y_continuous(breaks = scales::breaks_pretty(n = 4)(c(base, data_top)),
                        expand = expansion(mult = c(0.01, 0))) +
     theme_fig4(11) +
@@ -158,6 +158,8 @@ bar_panel <- function(d, v, g, om, ph, title_expr = v, ylab = NULL,
 scat <- function(d, xv, yv, xlab, ylab, g, rho, p, q = NA, ribbon = TRUE,
                  ann_pos = "above", k = NA) {
   cols <- pal(g)
+  # long axis titles are wrapped so neighbouring panels cannot collide
+  if (is.character(xlab)) xlab <- paste(strwrap(gsub("\n", " ", xlab), 28), collapse = "\n")
   kn <- if (!is.na(k) && k <= 6) sprintf("  [%d levels]", k) else ""
   # two lines, so neighbouring panels' statistics cannot run into each other
   ann <- sprintf("rho = %.2f  p = %s%s%s", rho, fmt_p(p),
@@ -173,7 +175,7 @@ scat <- function(d, xv, yv, xlab, ylab, g, rho, p, q = NA, ribbon = TRUE,
     # the "inside" annotation sits top-left, so buy it clear space rather than
     # letting it land on the data
     scale_y_continuous(expand = expansion(
-      mult = c(0.05, if (ann_pos == "inside") 0.20 else 0.05))) +
+      mult = c(0.05, if (ann_pos == "inside") 0.38 else 0.05))) +
     guides(fill  = guide_legend(order = 1, override.aes = list(shape = 21, size = 3.4)),
            shape = guide_legend(order = 2,
                      override.aes = list(fill = "grey40", colour = "black", size = 3.4))) +
@@ -181,8 +183,8 @@ scat <- function(d, xv, yv, xlab, ylab, g, rho, p, q = NA, ribbon = TRUE,
          subtitle = if (ann_pos == "above") ann else NULL,
          title    = if (ann_pos == "inside") stars(q) else NULL) +
     (if (ann_pos == "inside")
-       annotate("text", x = -Inf, y = Inf, hjust = -0.08, vjust = 1.5,
-                label = sprintf("rho = %.2g, p = %s%s", rho, fmt_p(p), sub("^  ", "\n", kn)),
+       annotate("text", x = -Inf, y = Inf, hjust = -0.08, vjust = 1.15,
+                label = sprintf("rho = %.2g\np = %s%s", rho, fmt_p(p), sub("^  ", "\n", kn)),
                 size = 2.8, fontface = "italic", colour = INK)
      else NULL) +
     theme_ms(10) +
@@ -215,7 +217,7 @@ row_fig <- function(panels, title, subtitle, figure, stem, w, h, nrow = 1) {
 }
 
 grid_fig <- function(panels, title, subtitle, figure, stem, ncol,
-                     panel_w = 2.8, panel_h = 3.6) {
+                     panel_w = 3.7, panel_h = 4.2) {
   nr <- ceiling(length(panels) / ncol)
   subtitle <- wrap_sub(subtitle, panel_w * ncol + 1.2)
   p <- patchwork::wrap_plots(panels, ncol = ncol, guides = "collect") +
