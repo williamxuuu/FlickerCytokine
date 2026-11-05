@@ -152,7 +152,10 @@ cat(sprintf("     -> correlations/: %d per-pair scatters (BH q < 0.05)\n", nrow(
 
 put_plots(d, "Fig4", "Fig4C_cytokine_amyloid_heatmap")
 put_plots(d, "Fig5", c("Fig5A_amyloid_vs_astro_tiling", "Fig5B_amyloid_vs_mg_tiling",
-                       "Fig5C_cytokine_vs_astro_number", "Fig5D_cytokine_vs_mg_number"))
+                       "Fig5D_cytokine_vs_mg_number"))
+put_plots(d, "Fig5_supp", c("Fig5S1_cytokine_vs_mg_number_BH_only",
+                            "Fig5S2_key_cytokines_vs_astro_number",
+                            "Fig5S3_key_cytokines_vs_mg_number"))
 put_plots(d, "Supp7", c("Supp7A_cyt_vs_astro_tiling_WT", "Supp7B_cyt_vs_mg_tiling_WT",
                         "Supp7C_cyt_vs_astro_number_WT", "Supp7D_cyt_vs_mg_number_WT"))
 
