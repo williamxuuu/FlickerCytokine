@@ -1,40 +1,36 @@
 # ============================================================================
-# 05_correlations.R  —  cytokine <-> amyloid and cytokine <-> morphology.
+# 05_correlations.R  —  cytokine ~ amyloid and cytokine ~ morphology.
 #
-# INPUT: the sex-z-scored table (00_setup.R), for BOTH sides of every pair. A
-# z-scored cytokine against a raw morphology measure would reintroduce the
-# confound through the target -- astrocyte cell number is itself sex-dimorphic.
+# Spearman correlation of every panel analyte with each target, within
+# genotype, on the sex-z-scored table (both sides of every pair, since several
+# targets -- e.g. astrocyte cell number -- are themselves sex-dimorphic).
 #
-# WHY A PERMUTATION NULL, NOT cor.test(). Permuting one variable against the
-# other holds BOTH marginals fixed, so the null is conditioned on the exact tie
-# structure observed and no tie-correction formula is needed. cor.test() cannot
-# do this: it warns "cannot compute exact p-value with ties" and falls back to
-# an asymptotic t, which is unreliable at n ~ 20.
+# PERMUTATION P-VALUES. Permuting the target against the analytes holds both
+# marginal distributions fixed, so the null distribution reflects the exact tie
+# structure of the data. This avoids cor.test()'s asymptotic approximation,
+# which is unreliable with ties at n ~ 20. B = 50,000.
 #
-# WHY THE PERMUTATION IS FREE, NOT SEX-STRATIFIED. Stratifying holds sex fixed
-# under the null, which is what raw values require. The sex z-score already
-# removes the sex effect from the data itself, so a free permutation is the
-# matching null. The stratified p is still computed and written as
-# `p_perm_sexstrat` -- a sensitivity check, not the headline. Where the two
-# disagree, say so.
+# FREE VS SEX-STRATIFIED PERMUTATION. Because sex has already been removed by
+# the within-sex z-score, permutations are unrestricted. A sex-stratified
+# permutation (labels shuffled only within sex) is computed as a sensitivity
+# analysis and reported as `p_perm_sexstrat`.
 #
-# Permutations are SHARED across analytes within each (genotype, target) family
-# so the joint null keeps the correlation structure among cytokines -- required
-# for the Westfall-Young column.
+# MULTIPLE TESTING. A family is one genotype x one target (28 analytes). The
+# same permutations are applied to every analyte in a family, preserving the
+# correlation structure among cytokines. Two corrections are reported:
+#   p_adj  Benjamini-Hochberg FDR on the permutation p-values (primary).
+#   p_wy   Westfall-Young single-step maxT family-wise error rate, computed on
+#          studentised rho (each analyte's |rho| divided by its null SD), so
+#          that analytes with many ties -- whose null distribution of rho is
+#          wider -- do not dominate the maximum.
+# Pairs that pass BH but not Westfall-Young are treated as weaker evidence and
+# shown in supplementary panels; low-resolution analytes are a common cause.
 #
-# TWO multiplicity columns, same permutations:
-#   p_adj = BH on the permutation p-values, within row. Primary.
-#   p_wy  = Westfall-Young single-step maxT on STUDENTIZED rho (FWER). Strict.
-#           Studentized because the null SD of rho differs with tie burden;
-#           max over raw |rho| would favour the coarse analytes.
-#   Report both. Coarse analytes pass BH and fail WY -- that gap IS the signal
-#   that they are quantisation artefacts.
+# RESOLUTION. `n_distinct` (number of distinct values) and `prop_tied`
+# (fraction of tied pairs) are computed on the raw MFI, since measurement
+# resolution is a property of the assay rather than of the transform.
 #
-# RESOLUTION COLUMNS ARE MEASURED ON RAW MFI, not on the z-scored values. Ties
-# are a property of the assay: an analyte read at four distinct levels is coarse
-# no matter what is done to it afterwards, and z-scoring within sex would split
-# those ties and flatter the analyte. n_distinct and prop_tied therefore travel
-# with the result and describe the instrument, not the transform.
+# Outputs: stats/corr_cytokine_amyloid.csv, stats/corr_cytokine_morphology.csv.
 # ============================================================================
 
 .here <- function() {
@@ -102,8 +98,8 @@ run <- function(targets, genos, label) {
   cat(sprintf("[05] %-22s %4d pairs | BH q<.05: %2d | WY p<.05: %d\n",
               label, nrow(out), sum(out$p_adj < .05), sum(out$p_wy < .05)))
   d <- sum(xor(out$p_perm < .05, out$p_perm_sexstrat < .05))
-  cat(sprintf("[05]   %sfree vs sex-stratified null disagree at p<.05 on %d of %d pairs\n",
-              "", d, nrow(out)))
+  cat(sprintf("[05]   free vs sex-stratified null disagree at p<.05 on %d of %d pairs\n",
+              d, nrow(out)))
   out
 }
 

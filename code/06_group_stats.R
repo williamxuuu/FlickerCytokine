@@ -1,23 +1,20 @@
 # ============================================================================
-# 06_group_stats.R  —  flicker group comparisons, on the sex-z-scored table.
+# 06_group_stats.R  —  flicker group comparisons, within genotype.
 #
-# The test itself is unchanged from the round-2 pipeline (lib/stats_helpers.R):
-# Anderson-Darling for normality, then ANOVA + Tukey or Kruskal-Wallis +
-# Dunn(BH). Tukey/Dunn IS the multiplicity correction for the three flicker
-# contrasts; there is no second FDR layer across analytes, and `p_omnibus_fdr`
-# is not computed here because it was never cited.
+# For every panel analyte (and, in 5xFAD, Abeta 40 / Abeta 42), on the
+# sex-z-scored table with sexes pooled (WT n = 20, 5xFAD n = 23):
 #
-# WHAT CHANGED: the input. Comparisons run on the sex-z-scored pooled table, so
-# each genotype is one group of n = 20 / 23 rather than four cells of n = 3-4.
-# That is the whole point of the z-score -- see 00_setup.R section 2, and the
-# before/after evidence in stats/qc_sex_zscore_effect.csv.
+#   Anderson-Darling test on model residuals (lib/stats_helpers.R)
+#     normal      -> one-way ANOVA, Tukey HSD post hoc
+#     non-normal  -> Kruskal-Wallis, Dunn post hoc (Benjamini-Hochberg)
 #
-# The sex-controlled mixed model that round 2 ran as a second route is dropped:
-# with sex already removed from the data, a model carrying Sex as a fixed effect
-# is fitting a term that is zero by construction. Sex is handled once, upstream.
+# The post hoc procedure controls error across the three pairwise flicker
+# contrasts within an analyte. No additional correction is applied across
+# analytes; omnibus p-values should be read with the 28-analyte panel size in
+# mind.
 #
-# Runs on the FULL 28-analyte panel and writes everything; the figure stages
-# select the key cytokines from it. Tested-everything, reported-honestly.
+# Outputs: stats/group_omnibus_{cytokines,amyloid}.csv,
+#          stats/group_posthoc_{cytokines,amyloid}.csv.
 # ============================================================================
 
 .here <- function() {
@@ -46,7 +43,7 @@ ra  <- compare_flicker_many(fad, AMYLOID_TARGETS, subgroup = "5XFAD")
 write.csv(ra$omnibus, file.path(STATS, "group_omnibus_amyloid.csv"), row.names = FALSE)
 write.csv(ra$posthoc, file.path(STATS, "group_posthoc_amyloid.csv"), row.names = FALSE)
 
-# --- what survives -----------------------------------------------------------
+# --- summary -----------------------------------------------------------------
 cat("\n=== FLICKER EFFECTS, 28-analyte panel, sex z-scored ===\n")
 for (g in GENOTYPES) {
   om <- omnibus[omnibus$subgroup == g, ]

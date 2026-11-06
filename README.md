@@ -1,290 +1,355 @@
-# 28-Cytokine Analysis — code
+# FlickerCytokine
 
-Chronic audiovisual flicker (No Flicker / 20 Hz / 40 Hz, 1 h/day × 7 d) in
-6-month 5xFAD and WT mice, both sexes. This package holds the **complete
-cytokine analysis**: the 28-analyte panel, the within-sex z-score, the PLS-DA,
-the group statistics, the correlations, and every manuscript figure panel that
-comes out of them.
+Analysis code for the hippocampal cytokine, amyloid and glia–cytokine
+correlation analyses in:
 
-Packaged 2026-09-26 from `AshleyPrichard/cytokine/`. Everything here was
-re-run and checked before packaging — see **[VERIFICATION.md](VERIFICATION.md)**
-for what was tested and what was found.
+> **Noninvasive audiovisual neurostimulation differentially alters glial
+> responses at 20Hz and 40Hz.** (Manuscript in preparation.)
 
-> **This repository is code only.** The raw plate workbook, the per-animal
-> tables, the statistics and the figure files are **not** included — the data
-> are not public. Put the workbook in `data/raw/` (format in
-> [data/raw/README.md](data/raw/README.md)) and the pipeline regenerates every
-> table and figure. `.gitignore` keeps `data/`, `stats/` and `figures/` out of
-> the repository so they cannot be committed by accident.
+Wild-type (WT) and 5xFAD mice (6 months old, both sexes) received chronic
+audiovisual flicker: No Flicker, 20 Hz or 40 Hz, 1 h/day for 7 days. The
+right hippocampus was assayed with a 32-plex Luminex cytokine/chemokine panel
+and, in 5xFAD mice, an Aβ1-40 / Aβ1-42 immunoassay. Glial morphology (astrocyte
+and microglia tiling, volume and number) was quantified separately. Per-animal
+summaries of those measures are used here as correlation targets.
+
+The pipeline takes the raw per-animal workbook and produces every statistic
+and every cytokine-related figure panel in the manuscript. It is
+written so that the same analysis can be run on a new dataset with the same
+structure.
+
+**This repository contains code only.** The study data are not distributed
+here. To run the pipeline, supply a workbook in the format described in
+[`data/raw/README.md`](data/raw/README.md). `.gitignore` excludes `data/`,
+`stats/` and `figures/`, so generated outputs are never committed.
 
 ---
 
-## Run it
+## Contents
 
-```bash
-# 1. once: place the plate workbook in data/raw/, then build the analysis table
-Rscript code/prep/01_load_and_prep.R     # data/raw/*.xlsx -> data/processed/animal_table.csv
+1. [Requirements](#requirements)
+2. [Quick start](#quick-start)
+3. [Analysis](#analysis)
+4. [Pipeline stages](#pipeline-stages)
+5. [Outputs](#outputs)
+6. [Reproducibility](#reproducibility)
+7. [Running on your own data](#running-on-your-own-data)
+8. [Repository layout](#repository-layout)
 
-# 2. the analysis
-cd code
-Rscript run_all.R            # everything      (~13 min the first time, PLS-DA permutation)
-Rscript run_all.R stats      # statistics only
-Rscript run_all.R figures    # figures only (statistics must already exist)
-```
+---
 
-**Requirements.** R 4.5.2 and sixteen packages — every one of them actually
-loaded by the code, nothing carried along (lmerTest, lme4, emmeans and car are
-used only by the stage-08 mixed-model cross-check):
+## Requirements
+
+R ≥ 4.5 (developed and tested on R 4.5.2, macOS). Package versions used:
+
+| Package | Version | Used for |
+|---|---|---|
+| ropls (Bioconductor) | 1.42.0 | PLS-DA |
+| rstatix | 0.7.3 | Tukey HSD, Dunn's test |
+| nortest | 1.0.4 | Anderson-Darling normality test |
+| matrixStats | 1.5.0 | resampling summaries |
+| lme4, lmerTest | 2.0.1, 3.2.1 | mixed-model sensitivity analysis |
+| emmeans, car | 2.0.2, 3.1.5 | mixed-model contrasts and tests |
+| readxl | 1.4.5 | reading the raw workbook |
+| tidyverse | 2.0.0 | data handling |
+| ggplot2, patchwork, ggnewscale, scales | 4.0.2, 1.3.2, 0.5.2, 1.4.0 | figures |
+| ragg, svglite | 1.5.1, 2.2.2 | PNG and SVG output |
 
 ```r
 install.packages(c("tidyverse", "readxl", "matrixStats", "ggplot2", "patchwork",
                    "ggnewscale", "scales", "ragg", "svglite", "rstatix", "nortest",
-                   "lmerTest", "lme4", "emmeans", "car"))
-BiocManager::install("ropls")          # Bioconductor
+                   "lmerTest", "lme4", "emmeans", "car", "BiocManager"))
+BiocManager::install("ropls")
 ```
-
-The first run computes the PLS-DA permutation and LOOCV and caches them in
-`stats/plsda_*.rds`; later runs reuse the cache (~1.5 min) unless the input
-changed. The seed is fixed at 42, so the same input reproduces the same values.
 
 ---
 
-## What's in here
+## Quick start
+
+```bash
+# 1. Place the raw workbook in data/raw/ and build the per-animal table
+Rscript code/prep/01_load_and_prep.R
+
+# 2. Run the analysis
+Rscript code/run_all.R            # statistics and figures
+Rscript code/run_all.R stats      # statistics only
+Rscript code/run_all.R figures    # figures only (requires existing statistics)
+```
+
+A first run takes about 15 minutes on a laptop, most of it in the PLS-DA
+permutation test. The results are cached, and later runs take about 3 minutes.
+
+---
+
+## Analysis
+
+All analyses are performed **within genotype**, comparing the three flicker
+groups.
+
+### 1. Preprocessing
+
+Analyte values are background-subtracted median fluorescence intensities
+(MFI). Background is the mean of the blank wells on the plate, and values below
+background are set to 0. The plate was run without standard curves, so values
+are relative rather than absolute concentrations.
+*(`code/prep/01_load_and_prep.R`)*
+
+### 2. Analyte detectability filter
+
+An analyte is analysed only if **more than 80% of animals** have values above
+background. The filter is applied to raw values, before any transformation. In
+this study it retains 28 of 32 analytes. IL-5, IL-12(p40), MCP-1 and TNF-α are
+excluded. *(`code/00_setup.R`)*
+
+### 3. Sex normalisation
+
+Each sex × flicker cell has only 3–4 animals, too few to analyse the sexes
+separately. Several measures also differ strongly between sexes, for example
+IL-10, RANTES and astrocyte number. Pooling raw values would therefore
+confound flicker with sex. Instead, every measure (cytokines, amyloid and
+morphology) is **z-scored within sex within genotype**, and the sexes are then
+pooled:
 
 ```
-28CytokineAnalysisCode/
-├── README.md              this file
-├── VERIFICATION.md        what was checked before packaging, and what was found
+z = (x − mean(x | sex, genotype)) / sd(x | sex, genotype)
+```
+
+This removes sex differences in baseline by construction. It preserves flicker
+effects only if sex is balanced across the flicker groups.
+`01_sex_zscore_qc.R` checks this:
+
+- **Balance.** It stops the pipeline if any group is more unbalanced than
+  80/20.
+- **Sex effect removed.** It reports the sex effect for each analyte before
+  and after normalisation.
+- **Flicker effect retained.** It reports the flicker effect for each analyte
+  before and after normalisation.
+
+All downstream values are unitless z-scores.
+
+### 4. PLS-DA
+
+A two-component partial least squares discriminant analysis (ropls) is
+fitted with flicker group as the outcome. Each analyte is scaled to unit
+variance.
+
+- **Model validation.** Leave-one-out cross-validated (LOOCV) classification
+  accuracy is compared with a null distribution from 1,000 random permutations
+  of the group labels:
+  p = (#{permuted accuracy ≥ observed} + 1) / 1,001.
+- **Loading uncertainty.** This is the SD of each loading across 1,000 refits,
+  each leaving out one randomly chosen animal. Loadings are aligned in sign
+  before the SD is taken.
+- **Key cytokines.** These are the three analytes with the largest absolute
+  loading on LV1 and the three on LV2. They are used to select analytes for
+  Supplementary Figures 5 and 7.
+- **No tests on latent-variable scores.** The latent variables are constructed
+  to separate the groups, so testing group differences on their scores would be
+  circular. Score plots are descriptive. Evidence for the model as a whole
+  comes from the permutation test.
+
+*(`code/02_plsda.R`)*
+
+### 5. Group comparisons
+
+For each analyte, and for Aβ1-40 and Aβ1-42 in 5xFAD, the test depends on an
+Anderson-Darling test of the residuals:
+
+| Residuals | Omnibus test | Post hoc |
+|---|---|---|
+| normal (p ≥ 0.05) | one-way ANOVA | Tukey HSD |
+| non-normal | Kruskal-Wallis | Dunn's test, Benjamini-Hochberg adjusted |
+
+The post hoc procedure controls error across the three pairwise contrasts. No
+further correction is applied across analytes. In figures, a pairwise
+contrast is starred only when its omnibus test is significant.
+*(`code/06_group_stats.R`, `code/lib/stats_helpers.R`)*
+
+### 6. Correlations
+
+Spearman's ρ is computed between each analyte and each target (Aβ1-40,
+Aβ1-42 and per-animal glial measures), within genotype, on the sex-normalised
+values.
+
+- **P values** come from 50,000 permutations of the target. This makes the null
+  distribution exact for the tie structure of the data, which matters at
+  n ≈ 20 with coarsely measured analytes.
+- **Multiple testing.** A family is one genotype × one target, which means 28
+  tests. The same permutations are applied to every analyte in a family. Two
+  corrections are reported:
+  - `p_adj`: Benjamini-Hochberg false discovery rate (primary).
+  - `p_wy`: Westfall-Young single-step maxT family-wise error rate (stricter).
+    It is computed on studentised ρ, so analytes with many ties do not
+    dominate the maximum.
+- **Selection for display.** Figure 5C shows the cytokines whose correlation
+  with microglial number passes both corrections. Pairs passing
+  Benjamini-Hochberg only are shown in the supplement. Both corrections count
+  all 28 tests, so selecting on them adds no hidden multiplicity.
+- **Measurement resolution.** Every correlation row reports `n_distinct` and
+  `prop_tied`, computed on raw MFI. On scatter panels, analytes measured at 6
+  or fewer distinct values are labelled `[k levels]`, because quantisation can
+  inflate ρ at that resolution.
+
+Regression lines on scatter plots are least-squares fits shown for display
+only.
+*(`code/05_correlations.R`)*
+
+### 7. Sensitivity analyses
+
+| Analysis | Question | Stage |
+|---|---|---|
+| Sex-stratified permutation (`p_perm_sexstrat`) | Do correlation p-values depend on permuting across sexes? | 05 |
+| Linear mixed model on raw values, `y ~ Flicker + Sex + (1 \| litter)`, raw and log1p scale | Does modelling sex, rather than removing it, change the flicker results? Is there a Flicker × Sex interaction? | 08 |
+| Correlations under two selection rules (PLS-DA key cytokines vs most flicker-responsive analytes) | Does the choice of displayed analytes change the conclusions? | 09 |
+
+---
+
+## Pipeline stages
+
+Each stage runs as a separate R process and reads only the outputs of earlier
+stages. No script contains a hardcoded list of selected cytokines. Every
+analyte selection is derived from the data by the rules above, so a change to
+the input or to any upstream setting propagates through all tables and
+figures.
+
+```
+raw workbook ─► prep/01_load_and_prep.R ─► animal table
+                                              │
+                         00_setup.R: detectability filter, within-sex z-score
+                                              │
+            ┌─────────────────┬───────────────┼────────────────┬──────────────┐
+            ▼                 ▼               ▼                ▼              ▼
+   01 z-score QC      02 PLS-DA ──►    05 correlations   06 group tests   08 mixed model
+                      key cytokines          │                │
+                            │                ▼                │
+                            │         09 selection rules      │
+                            └────────────┬────────────────────┘
+                                         ▼
+                              10–16 figure stages ─► 17 results by topic
+```
+
+| Stage | Purpose | Main outputs (`stats/`) |
+|---|---|---|
+| `prep/01_load_and_prep.R` | read workbook, background subtraction | `data/processed/animal_table.csv`, `group_sizes.csv` |
+| `00_setup.R` | paths, detectability filter, within-sex z-score (sourced by every stage) | `data/processed/animal_table_sex_zscored.csv` |
+| `01_sex_zscore_qc.R` | balance check; sex and flicker effects before vs after | `qc_sex_balance.csv`, `qc_sex_zscore_effect.csv` |
+| `02_plsda.R` | PLS-DA, permutation test, loading SDs, key cytokines | `plsda_<genotype>.rds`, `plsda_key_cytokines.csv` |
+| `05_correlations.R` | permutation Spearman, BH and Westfall-Young | `corr_cytokine_amyloid.csv`, `corr_cytokine_morphology.csv` |
+| `06_group_stats.R` | flicker group comparisons | `group_omnibus_*.csv`, `group_posthoc_*.csv` |
+| `08_mixed_model.R` | mixed-model sensitivity analysis | `mixed_model_omnibus.csv`, `mixed_model_posthoc.csv` |
+| `09_corr_selection.R` | correlations under two selection rules | `corr_morphology_by_selection.csv` |
+| `10`–`16` | figure panels (see below) | `figures/` |
+| `17_data_folders.R` | files all results by topic under `data/` | `data/{cytokine,amyloid,morphology,correlations}/` |
+
+---
+
+## Outputs
+
+### Figures
+
+Every panel is written as a 300 dpi PNG, a vector PDF and an SVG with editable
+text. Panels are written to `figures/<Figure>/`.
+
+| Figure | Panels | Stage |
+|---|---|---|
+| Figure 2 (WT) | B heatmap (columns ordered by LV1 loading) · C PLS-DA scores and score distributions · D LV1/LV2 loadings · E LV1 scores by group | `10_fig2.R` |
+| Figure 4 (5xFAD) | B Aβ1-40 / Aβ1-42 by flicker group · C cytokine × amyloid Spearman ρ heatmap | `11_fig4.R` |
+| Figure 5 (5xFAD) | A/B amyloid vs astrocyte / microglia tiling · C cytokines vs microglial number (BH and Westfall-Young significant) | `12_fig5.R` |
+| Figure 5, supplementary panels | S1 cytokines vs microglial number (BH only) · S2/S3 PLS-DA key cytokines vs astrocyte / microglial number | `12_fig5.R` |
+| Supplementary Figure 4 (5xFAD) | A–E, as Figure 2, with amyloid annotation on the heatmap | `13_supp4.R` |
+| Supplementary Figure 5 | key-cytokine group comparisons, WT and 5xFAD | `14_supp5.R` |
+| Supplementary Figure 6 | six most flicker-responsive cytokines, shown for both genotypes | `15_supp6.R` |
+| Supplementary Figure 7 (WT) | key cytokines vs astrocyte / microglia tiling and number | `16_supp7.R` |
+
+Experimental schematics (Figure 2A, Figure 4A) and the glial morphology
+figures are not generated by this code. Glial morphology group statistics come
+from separate cell-level analyses.
+
+### Statistics
+
+All statistics are written as tidy CSV files in `stats/`, one row per test,
+with the columns needed to check each result. Correlation tables carry `rho`,
+`n`, `p_perm`, `p_adj`, `p_wy`, `p_perm_sexstrat`, `n_distinct` and
+`prop_tied`. Group tables carry the test used, the statistic, degrees of
+freedom, group sizes and adjusted pairwise p-values.
+
+---
+
+## Reproducibility
+
+- **Seeds.** Every stage with a random component sets `set.seed(42)`, so
+  identical input gives identical output.
+- **Monte Carlo error.** Permutation p-values carry sampling error. With
+  B = 50,000 (correlations), a p-value near 0.04 is stable to about ±0.002.
+  With B = 1,000 (PLS-DA), the resolution is 0.001.
+- **Caching.** The PLS-DA permutation and LOOCV results are cached in
+  `stats/plsda_<genotype>.rds`. The cache is keyed on a fingerprint of the
+  input matrix, so any change to the data, analyte panel or transform triggers
+  recomputation. Delete the `.rds` files to force it.
+- **Determinism checks.** Rebuilding everything from the raw workbook in a
+  clean directory, with no cache, reproduces every statistics table and every
+  PNG and SVG figure byte-for-byte. PDFs differ only in their embedded
+  creation timestamp.
+
+---
+
+## Running on your own data
+
+The pipeline assumes one row per animal, with genotype, sex and flicker
+group, and the analytes as columns. To adapt it:
+
+1. **Workbook location and layout.** Set `combined_xlsx`, `combined_sheet`
+   and `combined_range` in `code/prep/config.R`.
+2. **Column names.** Set `cytokines_all`, `amyloid_vars` and `morph_vars` in
+   `code/prep/config.R`. The analyte list is repeated as `CYTOKINES_ALL` in
+   `code/00_setup.R`, and the two must match.
+3. **Design.** `GENOTYPES`, `FLICKER_LEVELS` and `SEXES` are set in
+   `code/00_setup.R` (and in `config.R` for the loader).
+4. **Required columns.** `Genotype`, `Sex`, `Flicker`, and `Sample` (blank
+   wells are identified by a missing genotype or `Sample == "Background0"`).
+   `litter` is used only by the mixed-model sensitivity analysis.
+5. **Analysis settings**, all named constants:
+
+   | Setting | Value here | Location |
+   |---|---|---|
+   | `DETECT_MIN` | 0.80 | `00_setup.R` |
+   | `N_PERM` | 1,000 | `02_plsda.R` |
+   | `N_KEY` | 3 | `02_plsda.R` |
+   | `B` | 50,000 | `05_correlations.R` |
+   | `normality_alpha` | 0.05 | `00_setup.R` |
+   | `posthoc_padjust` | `"BH"` | `00_setup.R` |
+
+The figure stages use this study's figure numbering and morphology column
+names. The statistics stages (00–09) are general.
+
+---
+
+## Repository layout
+
+```
+FlickerCytokine/
+├── README.md
 ├── code/
-│   ├── run_all.R          runs the cascade in dependency order
-│   ├── 00_setup.R         paths, palette, the 28-analyte gate, the sex z-score
-│   ├── 01_sex_zscore_qc.R is the z-score safe here? balance + before/after
-│   ├── 02_plsda.R         THE HUB — model, permutation, LOOCV, key cytokines
-│   ├── 03_theme.R         shared figure language
-│   ├── 04_panels.R        Fig 2 / Supp 4 panels
-│   ├── 05_correlations.R  cytokine ~ amyloid / morphology
-│   ├── 06_group_stats.R   flicker group comparisons
-│   ├── 07_figure_helpers.R Fig 4 / Fig 5 panel language
-│   ├── 08_mixed_model.R   cross-check: sex + litter in the model, raw values
-│   ├── 09_corr_selection.R cytokine ~ morphology: key vs most flicker-responsive
-│   ├── 10_fig2.R … 16_supp7.R   one stage per manuscript figure
-│   ├── 17_data_folders.R  re-files the results by topic into data/ (runs last)
-│   ├── lib/stats_helpers.R      the flicker group comparison
-│   └── prep/              raw .xlsx -> data/processed/animal_table.csv
-│
-│   ── generated locally, not in this repository ──
-├── data/
-│   ├── raw/               the source plate workbook (README only here)
-│   ├── processed/         per-animal tables (raw + sex z-scored)
-│   ├── cytokine/          28-analyte values, panel gate, group stats, PLS-DA + plots
-│   ├── amyloid/           Abeta / plaque values, group stats + bars
-│   ├── morphology/        per-animal glial summaries (no group stats; see Known limits)
-│   └── correlations/      rho tables, the BH q < 0.05 pairs, one scatter per pair + plots
-├── stats/                 every statistic as a tidy CSV
-└── figures/               manuscript-ready panels, 300 dpi PNG, vector PDF, editable SVG
+│   ├── run_all.R              runs all stages in order
+│   ├── 00_setup.R             paths, detectability filter, within-sex z-score
+│   ├── 01_sex_zscore_qc.R     z-score quality control
+│   ├── 02_plsda.R             PLS-DA, permutation test, key cytokines
+│   ├── 03_theme.R             figure styling; PNG / PDF / SVG output
+│   ├── 04_panels.R            PLS-DA panels (Figure 2, Supplementary Figure 4)
+│   ├── 05_correlations.R      permutation Spearman, BH, Westfall-Young
+│   ├── 06_group_stats.R       flicker group comparisons
+│   ├── 07_figure_helpers.R    shared bar and scatter panels
+│   ├── 08_mixed_model.R       mixed-model sensitivity analysis
+│   ├── 09_corr_selection.R    correlations under two selection rules
+│   ├── 10_fig2.R … 16_supp7.R one script per figure
+│   ├── 17_data_folders.R      results filed by topic
+│   ├── lib/stats_helpers.R    group-comparison functions
+│   └── prep/                  raw workbook → per-animal table
+└── data/raw/README.md         expected input format
+
+Generated on run (not tracked):
+├── data/processed/            per-animal tables (raw and sex-normalised)
+├── data/{cytokine,amyloid,morphology,correlations}/   results by topic
+├── stats/                     all statistics as CSV
+└── figures/                   all figure panels (PNG, PDF, SVG)
 ```
-
-**Every file in `code/` runs.** There is no dead code, no unused helper and no
-superseded stage in this package: `run_all.R` executes stages 00–17, stages 06, 08,
-11, 14 and 15 source `lib/stats_helpers.R`, and `prep/` builds the analysis
-table from the raw workbook. Nothing else is carried along.
-
-Round-1 and round-2 material — the Wood lab's original function library, the
-earlier PLS-DA helpers, the linear-range analyte screen and their outputs —
-lives in the project folder (`AshleyPrichard/cytokine/` and
-`AshleyPrichard/archive/`) and is deliberately not duplicated here.
-
----
-
-## The cascade
-
-The analysis flows strictly downstream. Each stage's output is the next stage's
-input, and **no script contains a literal list of cytokine names.**
-
-```
-  raw MFI ──┬─► detectability gate ──► PANEL (28 analytes)      00_setup.R
-            └─► z-score within sex ──► ANIMALS (the one table)  00_setup.R
-                          │
-                          ▼
-              PLS-DA per genotype ──► KEY CYTOKINES             02_plsda.R
-                          │            (top 3 |loading| LV1 + LV2)
-                          │
-       ┌──────────────────┼──────────────────┐
-       ▼                  ▼                  ▼
-  correlations      group stats         every figure           05, 06, 10-16
-   (05)              (06)                selects on KEY
-```
-
-Change the gate and all 28-analyte claims move together. Change the PLS-DA and
-every downstream figure's analyte selection moves with it.
-
----
-
-## The two decisions everything rests on
-
-### 1. The panel: 28 analytes, >80% above background
-
-An analyte is kept if **more than 80% of animals** have background-subtracted
-MFI > 0. Keeps 28; drops **IL-5, IL-12(p40), MCP-1, TNFa**.
-
-One line in Methods, literature precedent (Olink-style "% above LOD"), applied
-to all 32 without exception. It replaces the Wood-lab curated list plus the
-ad-hoc "no-change" screen.
-
-**There is no LOD or LLOQ.** The plate was run without standards — 43 unknowns
-and two Background0 wells, `AnalysisType = None`, blank units. Values are MFI,
-not pg/mL, and "background" is two blank wells. This must be stated in Methods;
-a real LOD would need a re-run with standards.
-
-> **Margin worth knowing.** IL-5 is the closest call: 34 of 43 animals above
-> background = 0.791, against a 0.80 threshold. One more animal (35/43 = 0.814)
-> and it would be in the panel. This matters because Supplementary Figure 4's
-> published caption is specifically about IL-5 — see "What the manuscript still
-> says" below.
-
-### 2. Sex: z-score within sex, then pool (PI's call)
-
-Per sex cell there are only **n = 3–4** animals. The sexes cannot be analysed
-separately, and pooling them raw would read sex differences as flicker effects.
-So every measure — cytokines, amyloid **and** morphology — is z-scored within
-sex within genotype, then M and F are pooled into one group of n = 20 (WT) /
-23 (5xFAD).
-
-`01_sex_zscore_qc.R` checks this and refuses to continue if it stops holding:
-
-- **Balance** — the z-score is only valid if sex is balanced across flicker
-  arms, otherwise subtracting a sex mean removes flicker signal too. Worst arm
-  here is **57/43** (hard limit 80/20). Safe.
-- **What it removed** — analytes with a sex effect at p < 0.05: **13 → 0**.
-  The strongest were 5xFAD IL-10 (p = 7.5e-05), RANTES (1.3e-04), WT IL-10
-  (0.0022).
-- **What it kept** — flicker p-values before vs after correlate at
-  **Spearman 0.915**; 7 → 5 analytes at p < 0.05.
-
-Downstream values are unitless z-scores, so **figure axes read "(z-score)" and
-bars can go below zero**. That is the visible price of pooling the sexes.
-
----
-
-## Results
-
-### PLS-DA — descriptive only, both genotypes
-
-| | LOOCV | chance | permutation p |
-|---|---|---|---|
-| WT | 0.400 | 0.333 | **0.202** |
-| 5xFAD | 0.348 | 0.333 | **0.320** |
-
-Neither model beats chance. The scores and loadings are shown as a picture and
-a descriptive weighting; **no statistics are run on the latent variables** and
-the score violins carry no p-values, brackets or asterisks (the Wood lab asked
-for this — `initialComments.md:8`, "cannot do stats on linked variable").
-
-The z-score did improve WT LOOCV from 0.250 to 0.400, but not enough.
-
-### Key cytokines (top 3 |loading| per latent variable)
-
-| | LV1 | LV2 |
-|---|---|---|
-| **WT** | IL-15, IL-6, LIF | IL-2, IL-17, LIX |
-| **5xFAD** | KC, IP-10, IL-17 | LIF, M-CSF, IL-12(p70) |
-
-These drive analyte selection in Fig 4C, Fig 5C/D, Supp 5 and Supp 7.
-
-### Flicker group effects — WT responds, 5xFAD does not
-
-Omnibus p < 0.05 on **5 of 28** analytes in WT, **0 of 28** in 5xFAD.
-
-| Analyte | Contrast | Adjusted p |
-|---|---|---|
-| IL-15 | NoFlicker vs 20Hz | 0.0034 |
-| IL-6 | NoFlicker vs 20Hz | 0.0086 |
-| M-CSF | NoFlicker vs 20Hz | 0.0211 |
-| Eotaxin | NoFlicker vs 20Hz | 0.0325 |
-| IL-15 | NoFlicker vs 40Hz | 0.0363 |
-| IFNy | NoFlicker vs 20Hz, vs 40Hz | 0.0381 |
-
-Two of these (IL-15, IL-6) are also WT LV1 key cytokines — the PLS-DA and the
-group test agree on where the WT signal is.
-
-*Caveat:* 5xFAD MIG shows a Tukey contrast at p = 0.043 with a non-significant
-omnibus (p = 0.051). Reported for completeness; it should not be claimed.
-
-### Amyloid — Abeta 40 is significant again
-
-Kruskal-Wallis **p = 0.039**; 40Hz vs No Flicker **p = 0.048**, 40Hz vs 20Hz
-**p = 0.048**. Abeta 42 is null (ANOVA p = 0.534).
-
-Round 2 had Abeta 40 at p = 0.060 (n.s.). The sex z-score recovered it. The
-manuscript's "40Hz reduces Abeta 40" claim is back in play.
-
-### Correlations — the microglia result is the solid one
-
-Nine pairs survive BH across the 28-analyte family; **five also survive
-Westfall–Young** (FWER, the strict cross-check):
-
-| Pair | rho | q (BH) | p (WY) |
-|---|---|---|---|
-| GM-CSF ~ Abeta 42 | 0.65 | 0.030 | **0.024** |
-| IL-3 ~ microglia number | 0.65 | 0.012 | **0.026** |
-| IL-15 ~ microglia number | 0.63 | 0.012 | **0.036** |
-| Eotaxin ~ microglia number | 0.62 | 0.012 | **0.040** |
-| IL-10 ~ microglia number | 0.62 | 0.012 | **0.041** |
-
-All 5xFAD. IL-7, MIG, MIP-1b and MIP-2 also clear BH but fail WY.
-
-**The astrocyte correlations are gone.** Round 2 reported astrocyte density ~
-IL-10 (rho = −0.61) and ~ RANTES (−0.56). Both vanish under the sex z-score —
-they were the sex confound, exactly as suspected. That disappearance is
-evidence the correction is doing its job, and it is a result worth stating.
-
-GM-CSF ~ Abeta 42 now passes both corrections (it passed BH but failed WY at
-p = 0.25 before the z-score). Read it with its resolution columns: **5 distinct
-values, 33% ties**.
-
-### Correlations by selection rule (stage 09, 2026-11)
-
-Stage 05 correlates all 28 analytes with every target, so choosing a different
-analyte set changes no rho or p, only the multiplicity family. Stage 09 puts the
-PLS-DA key cytokines next to the six most flicker-responsive analytes (smallest
-omnibus p) on the four figure targets. The responsive set is not stronger: WT
-has 0 nominal hits (key: 2), 5xFAD has 4 (key: 3), and one pair (5xFAD MIG ~
-microglia number) clears BH across the 28 but fails Westfall-Young (p = 0.18).
-The pairs that pass both corrections (IL-3, IL-15, Eotaxin, IL-10 ~ microglia
-number) are in neither set. See `stats/corr_morphology_by_selection.csv`.
-
----
-
-## What the manuscript still says (not yet reconciled — PI's call)
-
-`manuscript/7.21.26ManuscriptWilliam.docx` was written against round 2:
-
-- Methods says **16 analytes**; the panel is **28**.
-- G-CSF, GM-CSF, M-CSF and LIF are written up as *excluded* for linear range.
-  All four are back in, and LIF and M-CSF are 5xFAD key cytokines.
-- **Supp Fig 9** exists only to justify excluding those four. Its premise is
-  void; it should be cut.
-- Abeta 40 is written as n.s. (p = 0.060). It is now p = 0.039.
-- Supp 4's caption is "Flicker reduces expression of IL5 in 5xFAD mice". IL-5
-  is one of the four analytes the gate drops, so it is not in the panel and
-  cannot be. Either the caption changes or the gate has to be argued around.
-
----
-
-## Known limits
-
-- **Morphology group statistics (Fig 1/3/6, Supp 2/3/8) are not reproducible**
-  from the per-cell files in the original `data/SARA Temp/` — those figures were
-  made in MATLAB from an export not in that folder. They are **not part of this
-  package**, and the correlation targets inherit that blocker. Needs canonical
-  source data.
-- **Permutation p-values carry Monte Carlo noise.** Correlations use B = 50,000
-  (a p near 0.04 is stable to about ±0.002); the PLS-DA permutation uses
-  B = 1,000, which is coarser. The seed is fixed (42), so a given run reproduces.
-- **Coarse analytes.** Every correlation row carries `n_distinct` and
-  `prop_tied`, measured on raw MFI. An analyte read at 3–5 levels can throw a
-  large rho from quantisation alone; that is what the BH/WY gap detects.
-  Report `p_adj` and `p_wy` together.
-- **Supp 6 does not use the key cytokines** — it would be a pixel duplicate of
-  Supp 5. It ranks by flicker responsiveness instead. See the header of
-  `15_supp6.R`; this is flagged for a decision.

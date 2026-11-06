@@ -1,15 +1,15 @@
 # ============================================================================
 # lib/stats_helpers.R
-# The flicker group comparison, factored out so every stage runs the same test.
+# Flicker group comparisons, shared so every stage applies the same test.
 # Sourced by stages 06, 08, 11, 14 and 15.
 #
-# The rule, per the Wood-lab feedback (initialComments.md): Anderson-Darling for
-# normality, then ANOVA + Tukey when normal, Kruskal-Wallis + Dunn(BH) when not.
-# Tukey/Dunn IS the multiplicity correction for the three flicker contrasts;
-# there is no second FDR layer across analytes.
+# Decision rule: Anderson-Darling test for normality, then one-way ANOVA with
+# Tukey HSD when normal, or Kruskal-Wallis with Dunn's test (Benjamini-Hochberg
+# adjusted) when not. The post hoc procedure controls error across the three
+# pairwise flicker contrasts; no further correction is applied across
+# variables.
 #
-# Everything returns TIDY tables (one row per test) so stats/ can be assembled
-# into the manuscript's Supplementary Statistics table directly.
+# All functions return tidy tables (one row per test).
 #
 # Globals expected from 00_setup.R: flicker_levels, normality_alpha,
 # posthoc_padjust.
@@ -21,8 +21,7 @@ suppressPackageStartupMessages({
 })
 
 # --- normality ---------------------------------------------------------------
-# The manuscript pre-registers Anderson-Darling to choose parametric vs not.
-# Tested on within-group-centered residuals (the ANOVA/KW assumption).
+# Anderson-Darling on within-group-centred residuals (the ANOVA assumption).
 # Small groups (n<8) fall back to Shapiro; n<3 -> treat as non-normal.
 ad_is_normal <- function(values, groups, alpha = normality_alpha) {
   ok <- !is.na(values) & !is.na(groups)
@@ -39,7 +38,7 @@ ad_is_normal <- function(values, groups, alpha = normality_alpha) {
 # --- one variable across the 3 flicker groups --------------------------------
 # Returns list(omnibus = <1-row df>, posthoc = <df of pairwise>).
 # Tukey p is already family-wise adjusted; Dunn's is adjusted with
-# posthoc_padjust. No raw pairwise p is ever reported as final.
+# posthoc_padjust. Only adjusted pairwise p-values are reported.
 compare_flicker <- function(df, value_col, subgroup = "", variable = value_col,
                             group_col = "Flicker") {
   d <- data.frame(y = df[[value_col]], g = factor(df[[group_col]],
@@ -104,10 +103,9 @@ compare_flicker_many <- function(df, value_cols, subgroup = "") {
        posthoc = if (length(phs)) do.call(rbind, phs) else NULL)
 }
 
-# --- sex-controlled mixed model (stage 08 cross-check) -----------------------
-# The Wood-lab alternative (initialComments.md: "Multiple effects model ... to
-# control for sex"), ported from round 2. Per variable, within genotype, on the
-# RAW table -- on the z-scored table Sex is zero by construction:
+# --- sex-adjusted mixed model (stage 08 sensitivity analysis) ----------------
+# Per variable, within genotype, on the RAW table (on the z-scored table the
+# sex effect is zero by construction):
 #     y ~ Flicker + Sex + (1 | litter)
 # falling back to lm(y ~ Flicker + Sex) when the litter variance is singular or
 # there are < 3 litters. Reports the sex-controlled flicker effect, the sex main

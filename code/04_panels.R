@@ -1,58 +1,50 @@
 # ============================================================================
-# 04_panels.R  —  the published Figure 2 panel language, as functions.
+# 04_panels.R  —  PLS-DA figure panels (Figure 2, WT; Supplementary Figure 4,
+# 5xFAD).
 #
-# Figure 2 (WT) and Supplementary Figure 4 (5xFAD) are the SAME FIGURE drawn on
-# two genotypes: cytokine heatmap, PLS-DA scores, LV score violins, LV1/LV2
-# loadings. They are defined here exactly once; stages 10 and 13 supply only a
-# genotype, so the two figures cannot drift into different visual languages.
+# Both figures are built from the same functions, with the genotype as the only
+# argument (stages 10 and 13), so the two are directly comparable. All panels
+# read the cached PLS-DA fit from stage 02; nothing here refits a model.
 #
-# Everything here READS THE CACHED PLS-DA from stage 02. No panel refits a
-# model, so a figure cannot disagree with the statistics reported beside it.
+#   heatmap   one row per animal, grouped by flicker group, with flicker and
+#             sex annotation strips (and amyloid columns for 5xFAD); values are
+#             the sex-z-scored analytes re-standardised per analyte across the
+#             genotype's animals, colour range clipped to +/-1.5; columns
+#             ordered by LV1 loading so they align with the LV1 loadings panel.
+#   scores    LV1 vs LV2 scores with 95% normal-theory ellipses per group; the
+#             subtitle reports LOOCV accuracy and the permutation p (stage 02).
+#   violins   distribution of LV1 and LV2 scores per group (mean +/- SD).
+#   lv1 by    LV1 score per animal with group mean +/- SEM.
+#   group
+#   loadings  signed loadings on LV1 / LV2, normalised so |max| = 1, ascending,
+#             with the group at each end of the axis labelled.
 #
-# MATCHED from the published panels (manuscript/ManuscriptMostRecent.docx,
-# image2.png = Figure 2, image10.png = Supplementary Figure 4):
-#   heatmap   rows = animals grouped No Flicker / 40Hz / 20Hz (that order), group
-#             name on the LEFT; Flicker + Sex colour strips; analyte names at the
-#             BOTTOM, rotated; no dendrogram drawn; z-score bar -1.5..1.5 labelled
-#             "z-scored"; Flicker legend as coloured dots, M/F as filled/open
-#             squares; title "Inflammatory Cytokines and Chemokine Profile".
-#   scores    "PLSDA", solid black axes through the origin, group ellipses,
-#             filled circles, axes labelled "Scores on LV1/LV2 (R2X%)".
-#   violins   one panel per LV, stacked; violin filled by flicker with a black
-#             outline; black mean point with SD whiskers inside; boxed panel, no
-#             grid; 45-degree x labels; no legend.
-#   loadings  "Signals in LV1/LV2", vertical light-blue bars with black outline,
-#             ascending, loadings normalised so |max| = 1, names at the bottom,
-#             the high/low flicker group named at each end.
-#
-# THE VIOLINS CARRY NO STATISTICS. The published panels print p-values and
-# significance brackets on them (Fig 2C: 0.0031, 0.06, 0.00013, 0.00068). Those
-# are tests run on a latent variable that was FITTED to separate the groups, so
-# they are circular -- the Wood lab asked for them to go (initialComments.md:8,
-# "cannot do stats on linked variable"), so the violins stay as a picture only.
-# Model credibility is reported instead as LOOCV accuracy
-# against a label-permutation null, in the scores subtitle, in words.
-# Do not add brackets, asterisks or p-values to these panels.
+# Score panels carry no p-values or significance markers: the latent variables
+# are fitted to separate the groups, so testing groups on their scores would be
+# circular (see 02_plsda.R). The model-level permutation test is reported in
+# the scores subtitle instead.
 # ============================================================================
 
 suppressPackageStartupMessages({ library(ggplot2); library(patchwork) })
 
-MS_ORDER  <- c("NoFlicker", "40Hz", "20Hz")     # heatmap rows, top-to-bottom, as published
-MS_XORDER <- c("NoFlicker", "20Hz", "40Hz")     # violin x-axis, as published
+MS_ORDER  <- c("NoFlicker", "40Hz", "20Hz")     # heatmap rows, top to bottom
+MS_XORDER <- c("NoFlicker", "20Hz", "40Hz")     # x-axis / legend order
 MS_LABEL  <- c(NoFlicker = "No\nFlicker", "40Hz" = "40Hz", "20Hz" = "20Hz")
 MS_PRETTY <- c(NoFlicker = "No Flicker", "20Hz" = "20Hz", "40Hz" = "40Hz")
 
+# Per-analyte standardisation across all animals of one genotype, applied to
+# the sex-z-scored values for heatmap display only.
 zsc <- function(x) {
   s <- sd(x, na.rm = TRUE)
   if (is.na(s) || s == 0) x * 0 else (x - mean(x, na.rm = TRUE)) / s
 }
 
-# Annotation-column ramps, sampled from the published Supp 4A colour bars.
+# Colour ramps for the amyloid annotation columns (5xFAD heatmap).
 AB_RAMPS <- list(
   "Abeta 40" = c("#F9F3DC", "#F7D9A1", "#F7C76D", "#F3AF38", "#EB9D1F"),
   "Abeta 42" = c("#E3E0C5", "#CDC494", "#B8AA66", "#A29037", "#8A7A2E"))
 
-# rows ordered the published way, so every panel for one genotype agrees
+# animals in heatmap order, shared by every panel for one genotype
 ms_rows <- function(g) {
   d <- ANIMALS[ANIMALS$Genotype == g, , drop = FALSE]
   d$Flicker <- factor(as.character(d$Flicker), levels = MS_ORDER)
@@ -62,15 +54,12 @@ ms_rows <- function(g) {
 # ---------------------------------------------------------------------------
 # Heatmap (Fig 2B / Supp 4A).
 #
-# `annot` names continuous per-animal columns to draw as extra annotation
-# columns between the group strips and the analytes -- Supp 4A carries Abeta 42
-# and Abeta 40 there, as the published panel does. Figure 2B passes none: WT has
-# no amyloid, and the published Figure 2 has no such columns.
+# `annot` names continuous per-animal columns drawn as annotation columns
+# between the group strips and the analytes (Abeta 42 / Abeta 40 for 5xFAD).
 #
-# `col_order` picks the analyte (column) order: "cluster" is the average-linkage
-# order the published panel used; "lv1" sorts the columns by the LV1 loadings,
-# ascending, so they line up left-to-right with the "Signals in LV1" panel
-# (collaborator request for Figure 2B).
+# `col_order` sets the analyte (column) order: "lv1" (used for both figures)
+# sorts columns by LV1 loading, ascending, so they align left to right with the
+# LV1 loadings panel; "cluster" uses average-linkage hierarchical clustering.
 # ---------------------------------------------------------------------------
 ms_heatmap <- function(g, figure, stem, annot = character(), width = 15.5, height = 6.4,
                        col_order = c("cluster", "lv1")) {
@@ -108,11 +97,10 @@ ms_heatmap <- function(g, figure, stem, annot = character(), width = 15.5, heigh
           legend.key.height = unit(26, "pt"), legend.key.width = unit(9, "pt"))
 
   # --- Flicker / Sex strips, plus any annotation columns -------------------
-  # Annotation fills are resolved to hex here and drawn through
-  # scale_fill_identity behind a new_scale_fill, for two reasons: a fill vector
-  # passed outside aes() is not split correctly when the plot is facetted, and
-  # an `aes(x = 2 + i)` inside a loop resolves `i` at render time, so every
-  # column would land on the last one. Both of those were live bugs here.
+  # Annotation fills are resolved to hex here and drawn with
+  # scale_fill_identity behind new_scale_fill: a fill vector passed outside
+  # aes() is not split correctly across facets, and `aes(x = 2 + i)` inside a
+  # loop would resolve `i` lazily, placing every column at the last position.
   strip <- ggplot(d, aes(x = 1, y = row)) +
     geom_tile(aes(fill = Flicker), width = 0.9) +
     geom_tile(aes(x = 2, fill = Sex), width = 0.9, colour = "black", linewidth = 0.18) +
@@ -182,8 +170,8 @@ ms_heatmap <- function(g, figure, stem, annot = character(), width = 15.5, heigh
   leg <- leg + scale_x_continuous(limits = c(-0.3, 2.9)) +
     scale_y_continuous(limits = c(y_lo, 4.4)) + coord_cartesian(clip = "off") + theme_void()
 
-  # legend column has a FIXED physical width, so its text cannot clip however
-  # the canvas is scaled (03_theme.R FIG_SCALE)
+  # the legend column has a fixed physical width so its text cannot clip at
+  # any canvas size (see FIG_SCALE in 03_theme.R)
   save_fig((strip | hm | leg) +
              plot_layout(widths = unit(c(0.035 + 0.018 * length(annot), 1, 1.35),
                                        c("null", "null", "in"))),
@@ -199,10 +187,7 @@ ms_heatmap <- function(g, figure, stem, annot = character(), width = 15.5, heigh
 ms_scores_plot <- function(g, cc) {
   cols <- pal(g)
   r2 <- round(cc$r2x * 100, 1)
-  # MS_XORDER, not MS_ORDER: the heatmap's row order exists to group the rows,
-  # but a legend should read No Flicker -> 20Hz -> 40Hz.
-  # Sex is point shape, as in every other scatter (03_theme.R): the model is fit
-  # on the sex-z-scored table, and the reader should see the sexes interleave.
+  # Legend reads No Flicker -> 20Hz -> 40Hz. Sex is point shape (03_theme.R).
   sc <- data.frame(LV1 = cc$scores[, "LV1"], LV2 = cc$scores[, "LV2"],
                    Flicker = factor(cc$flicker, levels = MS_XORDER),
                    Sex     = factor(cc$sex, levels = SEXES))
@@ -232,11 +217,8 @@ ms_scores_plot <- function(g, cc) {
                          axis.line = element_line(colour = "black", linewidth = 0.4))
 }
 
-# --- LV score violins, NO STATISTICS (see header) --------------------------
-# Matched to the published panel: violin filled by flicker with a black
-# outline, a black mean point with SD whiskers inside, boxed panel, no grid,
-# 45-degree x labels, no legend. What is deliberately absent is the bracket,
-# the p-value and the asterisk the published panel carries.
+# --- LV score violins (descriptive; see header) -----------------------------
+# Violin per flicker group with the group mean +/- SD overlaid.
 ms_violin_plot <- function(g, cc, k) {
   cols <- pal(g)
   r2 <- round(cc$r2x * 100, 1)
@@ -263,11 +245,9 @@ ms_violin_plot <- function(g, cc, k) {
           axis.title.y = element_text(size = 9.5, colour = INK))
 }
 
-# --- LV1 scores by group, NO STATISTICS (Fig 2E / Supp 4E) ------------------
-# Our version of Garza et al. Fig 1E ("LV1 Scores by Groups"): one point per
-# animal, a black mean line with SEM whiskers, a dotted line at zero, y-axis
-# symmetric about zero. Garza bracket their groups with p-values; this panel
-# does not, for the same reason the violins do not (see header).
+# --- LV1 scores by group (descriptive; Fig 2E / Supp 4E) ---------------------
+# One point per animal, group mean +/- SEM, dotted line at zero, y-axis
+# symmetric about zero.
 ms_lv_groups_plot <- function(g, cc, k = 1) {
   cols <- pal(g)
   r2 <- round(cc$r2x * 100, 1)
@@ -334,8 +314,8 @@ ms_loading_plot <- function(g, cc, k) {
 }
 
 # ---------------------------------------------------------------------------
-# Driver: writes the scores, the violins (alone and stacked), the published
-# scores+violins composite, and both loadings panels.
+# Driver: writes the scores, the violins (alone and stacked), the
+# scores + violins composite, the LV1-by-group panel and both loadings panels.
 # `stems` names the output files so Fig 2 and Supp 4 keep their own numbering.
 # ---------------------------------------------------------------------------
 ms_plsda <- function(g, figure, stems) {
@@ -348,7 +328,7 @@ ms_plsda <- function(g, figure, stems) {
   vio <- (v1 / v2) + plot_layout(heights = c(1, 1))
   save_fig(vio, figure, stems$violins, 4.4, 8.0)
 
-  # published layout: scores on the left, the two violins stacked to the right
+  # composite: scores on the left, the two violins stacked to the right
   save_fig((sco | vio) + plot_layout(widths = c(1.85, 1)),
            figure, stems$composite, 12.0, 8.0)
 

@@ -1,29 +1,15 @@
 # ============================================================================
-# 15_supp6.R  —  Supplementary Figure 6: cytokine profiling, A = WT, B = 5xFAD.
-# Matched to the published panel (word/media/image12.png): one FIXED set of six
-# analytes shown for BOTH genotypes, 2 rows x 3 columns, all three pairwise
-# comparisons bracketed, analyte name as the panel title, no y-axis title.
+# 15_supp6.R  —  Supplementary Figure 6: the most flicker-responsive cytokines,
+# shown for both genotypes (A = WT, B = 5xFAD).
 #
-# ---------------------------------------------------------------------------
-# DELIBERATE EXCEPTION TO "PLS-DA KEYS EVERYWHERE" -- OPEN QUESTION.
+# One analyte set is plotted for both genotypes so that WT and 5xFAD responses
+# can be compared directly. The set is the six analytes with the smallest
+# omnibus flicker p from stage 06, ranked on each analyte's best result across
+# the two genotypes. (Supplementary Figure 5 shows the PLS-DA key cytokines;
+# this figure complements it with a selection based on the group test.)
 #
-# Every other downstream figure selects the PLS-DA key cytokines. This one
-# cannot: Supplementary Figure 5 already shows exactly those analytes, per
-# genotype, as bar panels with the same statistics, so the same rule here would
-# make Supp 6 a pixel-level duplicate of Supp 5.
-#
-# Supp 6 therefore keeps the published figure's job: ONE analyte set shown
-# across BOTH genotypes, so WT and 5xFAD can be read against each other. The set
-# is chosen by flicker responsiveness -- the six analytes with the smallest
-# omnibus p from stage 06, ranked on their best result across the two genotypes.
-# Still data-driven and still cascading (it moves when the panel or the z-score
-# moves); it simply ranks on the group test rather than on the LV loadings.
-#
-# Unresolved: whether to keep Supp 6 as-is, cut it, or point it at the key
-# cytokines and cut Supp 5 instead. Changing the rule is a one-line edit below.
-# ---------------------------------------------------------------------------
-#
-# Departure from the published panel: sex is point shape. Published uses circles.
+# Statistics as in stage 06; every pairwise comparison is shown with its
+# adjusted p.
 # ============================================================================
 
 .here <- function() {

@@ -1,12 +1,14 @@
 # ============================================================================
 # config.R — settings for the upstream loader (01_load_and_prep.R).
 #
-# This file configures ONE step: reading the raw plate workbook and writing
-# data/processed/animal_table.csv. Everything downstream of that — the analyte
-# panel, the sex z-score, the PLS-DA, the statistics, the figures — is
-# configured in code/00_setup.R, not here.
+# Configures the first step only: reading the raw workbook and writing
+# data/processed/animal_table.csv. Downstream settings (analyte panel, sex
+# normalisation, PLS-DA, statistics, figures) are in code/00_setup.R.
 #
-# Column names below are spelled exactly as they appear in the workbook.
+# To run the pipeline on another dataset, edit the workbook location, sheet and
+# range below, and the analyte / amyloid / morphology column names, which must
+# match the workbook headers exactly. See data/raw/README.md for the expected
+# layout.
 # ============================================================================
 
 # --- Paths -------------------------------------------------------------------
@@ -23,16 +25,14 @@ stats_dir    <- file.path(project_root, "stats")
 dir.create(file.path(results_dir, "processed"), recursive = TRUE, showWarnings = FALSE)
 dir.create(stats_dir, recursive = TRUE, showWarnings = FALSE)
 
-# The one combined per-animal table the analysis runs off: metadata + 32
-# cytokines + amyloid + glial-morphology summaries, one row per mouse.
-# 45 rows in range = 43 animals + 2 Background0 wells.
+# Combined per-animal workbook: metadata, Luminex analytes, amyloid and glial
+# morphology summaries, one row per animal, plus the blank (background) wells.
 combined_xlsx  <- file.path(data_dir, "Metadata_mCytokine_AmyloidBeta_MicroglialMorphology_SBversionv2.xlsx")
 combined_sheet <- "Simplified"
 combined_range <- "A2:BP47"      # header on row 2
 
-# Fail loudly rather than resolving somewhere wrong. .prep_here() falls back to
-# getwd() when this file is source()d interactively instead of run through
-# Rscript, which would otherwise point data_dir at the wrong place silently.
+# Stop with a clear message if the workbook is missing (e.g. when this file is
+# source()d interactively and the working directory is not code/prep/).
 if (!file.exists(combined_xlsx))
   stop("raw workbook not found at:\n  ", combined_xlsx,
        "\nExpected <package>/data/raw/. If you source()d this file by hand, run\n",
@@ -45,8 +45,9 @@ flicker_levels <- c("NoFlicker", "20Hz", "40Hz")
 sexes          <- c("M", "F")
 
 # --- Analytes ----------------------------------------------------------------
-# All 32 Luminex analytes. The loader background-subtracts every one of them;
-# the 28-analyte panel is selected downstream in 00_setup.R, not here.
+# All Luminex analytes on the plate. Every one is background-subtracted here;
+# the detectability filter is applied downstream in 00_setup.R (which keeps
+# its own copy of this list -- keep the two in sync).
 cytokines_all <- c(
   "G-CSF", "Eotaxin", "GM-CSF", "IFNy", "IL-1a", "IL-1B", "IL-2", "IL-4",
   "IL-3", "IL-5", "IL-6", "IL-7", "IL-9", "IL-10", "IL-12(p40)", "IL-12(p70)",
@@ -58,9 +59,8 @@ cytokines_all <- c(
 amyloid_vars <- c("Abeta 40", "Abeta 42", "Number of Plaques",
                   "Total Plaque Volume", "Ratio 42 to 40")
 
-# Per-animal morphology summaries used for the cytokine<->morphology
-# correlations: tiling (distance to nearest neighbor) and density (number of
-# cells), each as mean and median.
+# Per-animal glial morphology summaries (mean and median per animal): tiling
+# (distance to nearest neighbour), cell volume and cell number.
 morph_vars <- c(
   "AST mean_Distance to Nearest Neighbor", "AST median_Distance to Nearest Neighbor",
   "mean_Astrocyte Cell Volume",            "median_Astrocyte Cell Volume",

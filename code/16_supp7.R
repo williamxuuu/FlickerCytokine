@@ -1,18 +1,11 @@
 # ============================================================================
-# 16_supp7.R  —  Supplementary Figure 7: WT cytokine ~ morphology correlations.
+# 16_supp7.R  —  Supplementary Figure 7: WT cytokine ~ glial morphology.
 #
-# Supplementary Figure 7 IS Figure 5C/D on WT, so it uses the same rule: the
-# WT PLS-DA KEY CYTOKINES from the stage-02 cache, against each of the four
-# morphology targets. The published panel named its analytes directly; this one
-# derives them, so the selection follows the analysis.
-#
-# Published style: no CI ribbon, dashed black trend line, statistics italic
-# inside the panel at top-left, significance star centred above, black panel
-# box, no grid. Sex is point shape, as everywhere here.
-#
-# The subtitle states the best q on each target so "key" is never mistaken for
-# "significant" -- the two are different claims and this figure often shows
-# analytes that carry separation but no correlation.
+# The WT PLS-DA key cytokines (stage 02) against astrocyte and microglia tiling
+# (mean distance to nearest neighbour) and cell number (A-D). Statistics are
+# from stage 05 (permutation Spearman; BH q across the 28-analyte family). Each
+# subtitle reports the best q on that target, since key cytokines are selected
+# for group separation, not for correlation with morphology.
 # ============================================================================
 
 .here <- function() {
@@ -49,7 +42,7 @@ for (cfg in list(
   sub <- sprintf(paste("PLS-DA key cytokines (top 3 on LV1 and LV2); BH q across the",
                        "%d-analyte family, best q here = %.2f%s"),
                  length(PANEL), best,
-                 if (best >= 0.05) " - nothing reaches q < 0.05, so no panel is starred" else "")
+                 if (best >= 0.05) " (none < 0.05)" else "")
   grid_fig(ps, cfg$ttl, sub, "Supp7", cfg$stem, ncol = 3, panel_w = 4.0, panel_h = 4.4)
   cat(sprintf("[16] %-34s best q = %.3f\n", cfg$stem, best))
 }

@@ -1,33 +1,29 @@
 # ============================================================================
-# 17_data_folders.R  —  the 28-analyte results, filed by topic.
+# 17_data_folders.R  —  results organised by topic. Runs last.
 #
-# figures/ is organised by manuscript figure and stats/ is one flat folder.
-# This stage re-files the same results by TOPIC, in the layout the round-2
-# (16-analyte) results/ folders used, so anyone working from that layout finds
-# the current numbers where they expect them:
+# figures/ is organised by manuscript figure and stats/ is a flat folder of
+# tables. This stage files the same results by topic for browsing:
 #
-#   data/cytokine/      per-animal values (raw MFI + sex z-scored), the panel
-#                       gate, flicker group stats, PLS-DA loadings / scores /
-#                       key cytokines; plots/ = heatmaps, PLS-DA, key panels
-#   data/amyloid/       per-animal Abeta + plaque values, flicker group stats;
+#   data/cytokine/      per-animal values (raw MFI + sex z-scored), panel
+#                       filter, flicker group statistics, PLS-DA loadings /
+#                       scores / key cytokines; plots/ = heatmaps, PLS-DA panels
+#   data/amyloid/       per-animal Abeta and plaque values, group statistics;
 #                       plots/ = amyloid bars
 #   data/morphology/    per-animal glial summaries (raw + sex z-scored)
-#   data/correlations/  cytokine ~ amyloid / morphology tables, the BH q < 0.05
-#                       pairs, one scatter per such pair, and plots/ = the
-#                       correlation figures
+#   data/correlations/  correlation tables, the BH q < 0.05 pairs with one
+#                       scatter per pair, and plots/ = correlation figures
 #
-# NOTHING IS COMPUTED HERE THAT A STAGE BEFORE IT DID NOT ALREADY DECIDE. Every
-# number is either the analysis table from 00_setup.R, a stats/ CSV, or the
-# stage-02 PLS-DA cache, and every plot is a copy of a figures/ panel -- except
-# the per-pair scatters, which are drawn with the same scat() as Fig 5 from the
-# stage-05 statistics. So this stage must run LAST, after the figure stages.
+# Nothing new is computed: every number comes from the analysis table, a
+# stats/ CSV or the stage-02 cache, and every plot is a copy of a figures/
+# panel, except the per-pair scatters, which are drawn with the same scat()
+# function from the stage-05 statistics.
 #
-# No morphology group statistics or plots: the per-cell exports those need are
-# not in the source data (README "Known limits"). The per-animal summaries here
-# are the correlation targets, nothing more.
+# Glial morphology group statistics come from cell-level analyses performed
+# separately (MATLAB) and are not part of this pipeline; the per-animal
+# summaries here serve as correlation targets.
 #
-# Each folder is cleared before it is written, so a pair that stops passing BH
-# on a re-run disappears instead of lingering from the last run.
+# Each folder is cleared before writing, so results that no longer pass a
+# threshold on a re-run do not persist from an earlier run.
 # ============================================================================
 
 .here <- function() {
@@ -119,7 +115,7 @@ put_plots(d, "Fig4", "Fig4B_amyloid_bars")
 
 # =============================== morphology =================================
 d <- topic_dir("morphology")
-unlink(file.path(d, "plots"), recursive = TRUE)      # nothing reproducible to plot
+unlink(file.path(d, "plots"), recursive = TRUE)      # no morphology plots in this pipeline
 put_csv(values(ANIMALS_RAW, MORPH_TARGETS), d, "morphology_values_raw.csv")
 put_csv(values(ANIMALS,     MORPH_TARGETS), d, "morphology_values_sex_zscored.csv")
 
@@ -135,7 +131,7 @@ sig <- do.call(rbind, lapply(names(CR), function(f)
   cbind(family = f, CR[[f]][CR[[f]]$p_adj < 0.05, , drop = FALSE])))
 put_csv(sig[order(sig$p_adj, sig$p_wy), ], d, "corr_significant_BH.csv")
 
-# one scatter per BH-significant pair, in the round-2 per-pair layout
+# one scatter per BH-significant pair
 for (i in seq_len(nrow(sig))) {
   r  <- sig[i, ]
   sd <- file.path(d, r$family); dir.create(sd, showWarnings = FALSE)
@@ -152,7 +148,7 @@ cat(sprintf("     -> correlations/: %d per-pair scatters (BH q < 0.05)\n", nrow(
 
 put_plots(d, "Fig4", "Fig4C_cytokine_amyloid_heatmap")
 put_plots(d, "Fig5", c("Fig5A_amyloid_vs_astro_tiling", "Fig5B_amyloid_vs_mg_tiling",
-                       "Fig5D_cytokine_vs_mg_number"))
+                       "Fig5C_cytokine_vs_mg_number"))
 put_plots(d, "Fig5_supp", c("Fig5S1_cytokine_vs_mg_number_BH_only",
                             "Fig5S2_key_cytokines_vs_astro_number",
                             "Fig5S3_key_cytokines_vs_mg_number"))

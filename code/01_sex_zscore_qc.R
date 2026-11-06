@@ -1,25 +1,24 @@
 # ============================================================================
-# 01_sex_zscore_qc.R  —  does the sex z-score hold up? Run it; read the output.
+# 01_sex_zscore_qc.R  —  quality control for the within-sex z-score.
 #
-# Z-scoring within sex and pooling buys statistical power, but it is only valid
-# if removing each sex's mean does not also remove part of the flicker effect.
-# That holds when sex is BALANCED across flicker arms within a genotype. If one
-# arm were mostly female, the female mean would partly BE that arm's mean, and
-# subtracting it would erase the very signal the study is looking for.
+# Standardising within sex and pooling is valid only if removing each sex's
+# mean does not also remove part of the flicker effect. That holds when sex is
+# balanced across flicker groups within a genotype: if one group were mostly
+# female, the female mean would partly be that group's mean, and subtracting it
+# would remove flicker signal.
 #
-# This stage therefore checks three things and writes them to stats/:
+# This stage checks three things and writes them to stats/:
 #
-#   1. BALANCE. Sex composition per flicker arm, and the largest deviation from
-#      even. Hard stop if any arm is worse than 80/20 -- past that the z-score
-#      is removing flicker, not sex.
-#   2. WHAT IT REMOVED. Per analyte, the sex difference before and after. After
-#      z-scoring the sex effect must be ~0 by construction; this confirms the
-#      arithmetic did what the Methods sentence claims.
-#   3. WHAT IT KEPT. Per analyte, the flicker omnibus p before and after. These
-#      should track each other. Analytes where they diverge sharply are where
-#      the sex correction mattered most -- worth knowing, not necessarily wrong.
+#   1. BALANCE. Sex composition of each flicker group. The pipeline stops if
+#      any group is more unbalanced than 80/20.
+#   2. SEX EFFECT REMOVED. Per analyte, the sex difference (Wilcoxon) before
+#      and after standardisation; after, it should be ~0 by construction.
+#   3. FLICKER EFFECT RETAINED. Per analyte, the flicker omnibus p
+#      (Kruskal-Wallis) before and after. The two should track each other;
+#      analytes where they diverge are those where the sex adjustment matters
+#      most.
 #
-# This stage writes tables and prints a verdict. It draws nothing.
+# Outputs: stats/qc_sex_balance.csv, stats/qc_sex_zscore_effect.csv.
 # ============================================================================
 
 .here <- function() {
@@ -49,7 +48,7 @@ worst <- max(bal$frac_F[bal$n > 0], 1 - bal$frac_F[bal$n > 0])
 cat(sprintf("\n  worst arm is %.0f%% one sex (hard limit 80%%)\n", 100 * worst))
 if (worst > 0.80)
   stop("SEX BALANCE FAILED: an arm exceeds 80/20. The within-sex z-score would ",
-       "remove flicker signal, not just sex. Re-decide the sex handling.")
+       "remove flicker signal, not just sex; use a different sex adjustment.")
 cat("  -> balance OK; pooling after a within-sex z-score is safe here.\n\n")
 
 # ---------------------------------------------------------------------------
@@ -95,7 +94,7 @@ cat(sprintf("  reach p < 0.05 before: %d   after: %d\n",
             sum(eff$flicker_p_raw < 0.05, na.rm = TRUE),
             sum(eff$flicker_p_z   < 0.05, na.rm = TRUE)))
 mv <- eff[ok, ][order(-abs(eff$flicker_p_shift[ok])), ][1:5, ]
-cat("  largest movers (where correcting for sex mattered most):\n")
+cat("  largest changes (where the sex adjustment matters most):\n")
 for (i in seq_len(nrow(mv))) cat(sprintf("    %-6s %-12s flicker p %.3f -> %.3f\n",
     mv$genotype[i], mv$analyte[i], mv$flicker_p_raw[i], mv$flicker_p_z[i]))
 

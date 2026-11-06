@@ -1,16 +1,9 @@
 # ============================================================================
-# 03_theme.R  —  shared figure language. Source after 00_setup.R.
+# 03_theme.R  —  shared figure styling and output. Source after 00_setup.R.
 #
-# The flicker palette lives in 00_setup.R and is the PUBLISHED manuscript's own
-# set, so regenerated panels drop in next to untouched ones without looking
-# foreign. See the note there on its colourblind trade-off, and why identity in
-# this pipeline is never carried by colour alone.
-#
-# SEX IS POINT SHAPE in every scatter. This is a deliberate departure from the
-# published panels, which use circles throughout. It is kept because sex is the
-# largest nuisance effect in this dataset -- 13 of 56 genotype-analyte pairs
-# show a sex difference at p < 0.05 before correction -- and a reader should be
-# able to see the sexes interleaved rather than take the z-score on trust.
+# Sex is shown by point shape (circle = male, triangle = female) in every
+# per-animal plot, so readers can see that the sexes are interleaved after the
+# within-sex z-score rather than taking the adjustment on trust.
 # ============================================================================
 
 suppressPackageStartupMessages({ library(ggplot2) })
@@ -21,8 +14,7 @@ INK2      <- "#4A4A4A"                  # secondary text
 INK3      <- "#8A8A8A"                  # muted / grid
 SURFACE   <- "#FFFFFF"
 
-# Diverging ramp for rho heatmaps, sampled from the published Figure 4 colour
-# bar so Fig 4C keeps its own look.
+# Diverging ramp for correlation (rho) heatmaps.
 DIVERGING <- c("#4053A4", "#8E9BC9", "#FFFFFF", "#F09B92", "#ED2724")
 
 theme_ms <- function(base = 11) {
@@ -62,24 +54,19 @@ ab_lab <- function(v, unit = " (z-score)")
 # rather than "(a.u.)", which would imply raw MFI.
 zlab <- function(v) paste0(v, " (z-score)")
 
-# NOTE ON DEVICES. This R build reports capabilities("cairo") == TRUE but
-# cairo_pdf() fails with "failed to load cairo DLL", so it silently writes
-# nothing. We therefore use the base pdf() device -- which cannot render Greek
-# letters or arrows (rho, beta, up-arrow all fail; em/en dashes are silently
-# swapped for hyphens). Every figure string is kept ASCII-safe, or built with
-# plotmath, so the PDF is glyph-identical to the PNG.
+# OUTPUT DEVICES. Every figure is written three ways:
+#   PNG  300 dpi raster (ragg)
+#   PDF  vector (base pdf device)
+#   SVG  vector with live, editable text (svglite; fix_text_size = FALSE omits
+#        the textLength attribute so text is not stretched when an editor
+#        substitutes a font). Sizes are in points, so the SVG opens at the
+#        physical size below.
+# The base pdf() device cannot render Greek letters or arrows, so all figure
+# text is ASCII or built with plotmath; the three formats are glyph-identical.
 #
-# SVG is the Illustrator copy (PI request, 2026-11). svglite keeps every label
-# as live <text>, so it stays editable; fix_text_size = FALSE drops the
-# textLength attribute, which otherwise stretches text when Illustrator
-# substitutes a font. SVG is vector and has no dpi of its own -- sizes are
-# written in points (72 per inch), so the artboard opens at the physical size
-# below; set Illustrator's raster effects to 300 ppi to match the PNGs.
-#
-# FIG_SCALE shrinks the canvas while every font, point and line keeps its size
-# in points, so text fills more of each panel (PI request, 2026-11: larger font
-# relative to the figure, less white space). One knob for every figure; the
-# width/height each stage passes are the pre-2026-11 canvas.
+# FIG_SCALE scales every canvas while font, point and line sizes stay fixed in
+# points, i.e. it sets text size relative to the panel. Stages pass nominal
+# canvas sizes; the written size is nominal x FIG_SCALE.
 FIG_SCALE <- 0.60
 
 write_fig <- function(plot, f, width, height) {

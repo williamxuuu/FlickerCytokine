@@ -1,12 +1,11 @@
-# Code only. Data, statistics and figure outputs are generated locally and are
-# never committed: the raw workbook and everything derived from it stay private.
+# Code only. Input data, statistics and figures are generated locally and are
+# not committed.
 data/*
 !data/raw/
 data/raw/*
 !data/raw/README.md
 stats/
-figures/*
-!figures/MANIFEST.md
+figures/
 *.xlsx
 *.csv
 *.rds

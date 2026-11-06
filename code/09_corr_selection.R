@@ -1,29 +1,26 @@
 # ============================================================================
-# 09_corr_selection.R  —  cytokine ~ morphology, by HOW the cytokines are chosen.
+# 09_corr_selection.R  —  cytokine ~ morphology under two analyte-selection rules.
 #
-# Stage 05 already correlates every one of the 28 analytes with every
-# morphology target, so choosing a different analyte set does NOT change any
-# rho or p. What it can change is the multiplicity family. This stage puts two
-# selection rules side by side, on the four morphology targets the figures use:
+# Stage 05 correlates all 28 analytes with every morphology target, so the
+# choice of which analytes to display does not change any rho or p; it changes
+# only the multiple-testing family. This stage compares two selection rules on
+# the four morphology targets shown in the figures:
 #
-#   key         the PLS-DA key cytokines (stage 02): top 3 |loading| on LV1
-#               and on LV2. What Fig 5C/D and Supp 7 show.
+#   key         PLS-DA key cytokines (stage 02): top 3 |loading| on LV1 and LV2.
 #   responsive  the N_RESP analytes with the smallest flicker omnibus p in that
-#               genotype (stage 06). In WT the top five reach p < 0.05; in
-#               5xFAD none do, so the set there is "least null", not
-#               "significant". `omnibus_p` travels with every row.
+#               genotype (stage 06). `omnibus_p` is reported on every row, since
+#               the most responsive analytes need not be significant.
 #
-# For each row it reports:
-#   q_panel   BH across all 28 analytes for that (genotype, target) -- the
-#             primary q, identical to stage 05's p_adj, whatever the selection.
-#   q_set     BH within the selected set (6 analytes) for that target. Smaller
-#             family, so smaller q. Only defensible if the set is fixed BEFORE
-#             the correlations are looked at -- both rules here select on a
-#             separate analysis (PLS-DA / group test), never on the correlation.
-#   p_wy      Westfall-Young across the 28 analytes, unchanged from stage 05.
+# Reported per row:
+#   q_panel   BH across all 28 analytes for that genotype x target (identical
+#             to stage 05's p_adj; the primary q).
+#   q_set     BH within the selected set only. Valid only because both rules
+#             select on an independent analysis (PLS-DA or group test), never
+#             on the correlations themselves; reported as a sensitivity view,
+#             not as a substitute for q_panel.
+#   p_wy      Westfall-Young across the 28 analytes (stage 05).
 #
-# Read q_set as a sensitivity view, not as a replacement for q_panel: picking
-# whichever family gives the smaller q after seeing both is not a correction.
+# Output: stats/corr_morphology_by_selection.csv.
 # ============================================================================
 
 .here <- function() {

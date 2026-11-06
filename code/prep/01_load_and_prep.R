@@ -1,7 +1,12 @@
 # ============================================================================
 # 01_load_and_prep.R
-# Read the combined per-animal table, background-subtract the cytokines, set up
-# factors, and write one tidy animal-level table the rest of the pipeline uses.
+# Reads the raw per-animal workbook, background-subtracts the analytes, sets
+# factor levels, and writes the animal-level table used by the pipeline:
+#   data/processed/animal_table.{csv,rds}, stats/group_sizes.csv
+#
+# Background = mean of the blank wells (rows with no genotype, or Sample ==
+# "Background0"); values below background are set to 0. Amyloid and
+# morphology columns are carried through unchanged.
 # ============================================================================
 
 suppressPackageStartupMessages({
@@ -9,11 +14,7 @@ suppressPackageStartupMessages({
   library(tidyverse)
 })
 
-# [PACKAGING FIX 2026-09-26] Source the config by absolute path. Previously
-# `source("config.R")`, which (a) required the working directory to be this
-# folder and (b) named a file that did not exist -- the config shipped as
-# `config_round2.R`, so this stage could not run at all. Renamed to config.R
-# and located relative to this script. Loader logic below is unchanged.
+# Locate config.R relative to this script, so it runs from any directory.
 .prep_here <- function() {
   a <- commandArgs(trailingOnly = FALSE); f <- sub("^--file=", "", a[grep("^--file=", a)])
   if (length(f)) dirname(normalizePath(f)) else getwd()
@@ -38,9 +39,7 @@ animals <- raw[!is_bg, , drop = FALSE]
 cat("[01] background wells:", nrow(bg), "| animals:", nrow(animals), "\n")
 
 # ----------------------------------------------------------------------------
-# 2. Background-subtract the cytokines, clip negatives to 0.
-#    (manuscript: "Cytokine data was subtracted from background values, and any
-#     negative values were set to 0".) Amyloid/morphology are left as-is.
+# 2. Background-subtract the analytes; values below background are set to 0.
 # ----------------------------------------------------------------------------
 stopifnot(all(cytokines_all %in% colnames(animals)))
 bg_means <- vapply(cytokines_all, function(a) mean(bg[[a]], na.rm = TRUE),
@@ -58,12 +57,12 @@ animals$Flicker  <- factor(animals$Flicker,  levels = flicker_levels)
 animals$Sex      <- factor(animals$Sex,      levels = sexes)
 if ("Cohort" %in% colnames(animals)) animals$Cohort <- factor(animals$Cohort)
 
-# convenient combined labels the original script leaned on
+# combined grouping labels
 animals$Condition   <- paste(animals$Genotype, animals$Sex, animals$Flicker)
 animals$GenotypeSex <- paste(animals$Genotype, animals$Sex)
 
 # ----------------------------------------------------------------------------
-# 4. Sanity: group sizes, and note them for the stats tables (small-N design).
+# 4. Group sizes, printed and written to stats/.
 # ----------------------------------------------------------------------------
 grp <- animals %>%
   count(Genotype, Flicker, Sex, name = "n") %>%
@@ -74,7 +73,7 @@ cat("[01] per genotype x flicker (sexes pooled):\n")
 print(animals %>% count(Genotype, Flicker, name = "n"), row.names = FALSE)
 
 # ----------------------------------------------------------------------------
-# 5. Write the tidy animal table + a fast-reload RDS.
+# 5. Write the animal table (CSV + RDS).
 # ----------------------------------------------------------------------------
 keep_cols <- c("Sample Number", "Subject", "BlindName", "Genotype", "Sex",
                "Flicker", "Cohort", "litter", "Condition", "GenotypeSex",

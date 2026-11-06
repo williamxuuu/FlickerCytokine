@@ -1,31 +1,21 @@
 # ============================================================================
-# 07_figure_helpers.R  —  the published Figure 4 / Figure 5 panel language.
+# 07_figure_helpers.R  —  shared bar and scatter panels (Figures 4-5, Supp 5-7).
 #
-# One definition per panel TYPE, used by every figure stage. Figure 4B, Supp 5
-# and Supp 6 are all "bar + points + brackets"; Figure 5 and Supp 7 are both
-# "scatter + trend + statistics". Each is defined here exactly once, so panels
-# of the same type cannot drift apart.
+# One definition per panel type, used by every figure stage:
+#   bars     group mean +/- SEM with one point per animal; Tukey / Dunn
+#            adjusted pairwise p-values as brackets; the omnibus test (ANOVA
+#            or Kruskal-Wallis) and its p printed beneath the title.
+#   scatter  one point per animal with a dashed least-squares line (display
+#            only); Spearman rho, permutation p and BH q printed on the panel.
 #
-# Matched from the published panels (manuscript/ManuscriptMostRecent.docx,
-# image4.png = Figure 4, image5.png = Figure 5, image12.png = Supp 6):
-#   bars     full black panel box, no grid; bar is a pale TINT of the group
-#            colour with a black outline; mean +/- SEM error bars WITH caps;
-#            animals as full-colour markers with a black edge; x labels
-#            "No Flicker" / "20Hz" / "40Hz" rotated 45 degrees, bold; pairwise
-#            p-values as grey brackets -- adjacent comparisons on the upper
-#            level, the NoFlicker-40Hz span below them.
-#   scatter  black panel box, no grid, dashed black trend line, large outlined
-#            points, statistics printed above the panel or italic inside it.
-#
-# DEPARTURES, all content rather than aesthetics:
-#   1. Sex is marker SHAPE (circle / triangle); the published panels draw every
-#      animal as a circle. See the note in 03_theme.R.
-#   2. Correlation asterisks are gated on BH q, not the raw p the published
-#      panels starred. Westfall-Young is the stricter cross-check and lives in
-#      the stats CSVs; it does not gate the stars.
-#   3. Each bar panel keeps a small grey omnibus line (ANOVA or Kruskal-Wallis
-#      + p). That is the test the analysis rests on; dropping it to match the
-#      published panel would hide it.
+# Conventions:
+#   - Sex is point shape (03_theme.R).
+#   - Pairwise contrasts are starred only when the omnibus test is
+#     significant (p < 0.05); otherwise the adjusted p is printed unstarred.
+#   - Correlation significance markers are based on BH q, not raw p.
+#     Westfall-Young p-values are reported in the stats tables.
+#   - Analytes measured at 6 or fewer distinct raw values are labelled
+#     "[k levels]" on scatter panels, as a warning of coarse resolution.
 # ============================================================================
 
 suppressPackageStartupMessages({ library(ggplot2); library(patchwork) })
@@ -34,23 +24,22 @@ suppressPackageStartupMessages({ library(ggplot2); library(patchwork) })
 # device and ragg agree glyph for glyph. See the device note in 03_theme.R.
 MS_FONT <- "Helvetica"
 
-# published Figure 4 colour bar, sampled at -1, -0.5, 0, +0.5, +1
+# diverging ramp for the Figure 4C rho heatmap, at -1, -0.5, 0, +0.5, +1
 MS_DIVERGING <- c("#4053A4", "#A38EC3", "#FFFFFF", "#F79F86", "#ED2724")
 
 FLICKER_MS <- c(NoFlicker = "No\nFlicker", "20Hz" = "20Hz", "40Hz" = "40Hz")
 
-# BH-adjusted significance stars. One definition, so a star means the same
-# thing in every panel of the paper.
+# Significance stars from adjusted p / q, defined once for every panel.
 stars <- function(q) if (is.na(q)) "" else if (q < 0.001) " ***" else
                      if (q < 0.01) " **" else if (q < 0.05) " *" else ""
 
-# pale bar fill: the group colour washed toward white, as in the published bars
+# pale bar fill: the group colour blended toward white
 tint <- function(col, w = 0.42) {
   r <- grDevices::col2rgb(col)
   grDevices::rgb(t(255 - (255 - r) * w), maxColorValue = 255)
 }
 
-# the published figure's own theme: boxed panel, no grid, bold tick labels
+# panel theme: boxed panel, no grid, bold tick labels
 theme_fig4 <- function(base = 11) {
   theme_ms(base) +
     theme(
@@ -73,8 +62,8 @@ theme_fig4 <- function(base = 11) {
 #
 # `title_expr` lets Figure 4B pass a plotmath Abeta label where the cytokine
 # panels pass a plain analyte name.
-# `all_brackets` = TRUE draws every pairwise comparison with its p-value, as the
-# published Figure 4B and Supp 6 do. FALSE draws only those reaching 0.05.
+# `all_brackets` = TRUE draws every pairwise comparison with its p-value;
+# FALSE draws only those with adjusted p < 0.05.
 # ---------------------------------------------------------------------------
 bar_panel <- function(d, v, g, om, ph, title_expr = v, ylab = NULL,
                       all_brackets = TRUE) {
@@ -95,7 +84,7 @@ bar_panel <- function(d, v, g, om, ph, title_expr = v, ylab = NULL,
              colour = "black", linewidth = 0.45) +
     geom_errorbar(data = mu, aes(y = m, ymin = m - se, ymax = m + se),
                   width = 0.17, linewidth = 0.5, colour = "black") +
-    # points carry the FULL group colour; only the bar is tinted, as published.
+    # points carry the full group colour; only the bar is tinted.
     # fill is passed outside aes() so it does not enter the bar's fill scale.
     geom_point(aes(shape = Sex), fill = cols[as.character(dd$Flicker)],
                colour = "black", size = 2.4, stroke = 0.45,
@@ -116,9 +105,8 @@ bar_panel <- function(d, v, g, om, ph, title_expr = v, ylab = NULL,
       lvl <- ifelse(abs(x2 - x1) == 1, 0.33, 0.10)
       yb  <- top + span * lvl
       tick <- span * 0.018
-      # A pairwise star is only earned behind a significant omnibus: with the
-      # omnibus at p >= 0.05 the contrast p is printed but not starred (e.g.
-      # 5xFAD MIG, omnibus 0.051, Tukey 20Hz vs 40Hz 0.043).
+      # Stars only behind a significant omnibus test: with omnibus p >= 0.05
+      # the adjusted contrast p is printed but not starred.
       gate <- !is.null(om) && nrow(om) && isTRUE(om$p[1] < 0.05)
       lab <- ifelse(gate & s$p_adj < 0.05,
                     sprintf("%s *", signif(s$p_adj, 2)), sprintf("%s", signif(s$p_adj, 2)))
@@ -137,8 +125,8 @@ bar_panel <- function(d, v, g, om, ph, title_expr = v, ylab = NULL,
     }
   }
 
-  # breaks are chosen on the DATA range, not the bracket headroom, so the axis
-  # keeps the published tick density instead of coarsening.
+  # breaks are chosen on the data range, not the bracket headroom, so the
+  # axis keeps a consistent tick density.
   p + coord_cartesian(ylim = c(base, top + span * 0.30), clip = "off") +
     scale_y_continuous(breaks = scales::breaks_pretty(n = 4)(c(base, data_top)),
                        expand = expansion(mult = c(0.01, 0))) +
@@ -151,9 +139,9 @@ bar_panel <- function(d, v, g, om, ph, title_expr = v, ylab = NULL,
 # ---------------------------------------------------------------------------
 # SCATTER PANEL (Fig 5, Supp 7)
 #
-# `k` is the analyte's number of distinct values IN THE RAW ASSAY. Below ~6 the
-# Spearman is running on a handful of levels and a large rho can be
-# quantisation rather than signal, so the panel says so out loud.
+# `k` is the analyte's number of distinct raw values. At 6 or fewer, Spearman's
+# rho is computed on a handful of levels and can be inflated by quantisation,
+# so the panel is labelled "[k levels]".
 # ---------------------------------------------------------------------------
 scat <- function(d, xv, yv, xlab, ylab, g, rho, p, q = NA, ribbon = TRUE,
                  ann_pos = "above", k = NA) {
@@ -240,6 +228,5 @@ lookup <- function(tbl, g, analyte, target) {
   if (!nrow(r)) NULL else r[1, ]
 }
 
-# The key cytokines for a genotype, straight from the stage-02 cache.
-# THIS IS THE ONLY WAY A FIGURE STAGE MAY CHOOSE ANALYTES.
+# The PLS-DA key cytokines for a genotype, from the stage-02 cache.
 key_cytokines <- function(g) readRDS(file.path(STATS, sprintf("plsda_%s.rds", g)))$key

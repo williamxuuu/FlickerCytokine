@@ -1,18 +1,15 @@
 # ============================================================================
-# run_all.R  —  the whole cascade, in dependency order.
+# run_all.R  —  runs the pipeline in dependency order.
 #
 #   Rscript run_all.R            everything
 #   Rscript run_all.R stats      setup + QC + PLS-DA + statistics, no figures
 #   Rscript run_all.R figures    figures only (statistics must already exist)
 #
-# Each stage is a separate Rscript process, so a failure stops the run at the
-# stage that failed and cannot leave a half-updated global environment behind
-# for the next one.
+# Each stage runs in a separate Rscript process (each sources 00_setup.R), so
+# a failure stops the run at that stage and no state leaks between stages.
 #
-# Stage 02 (PLS-DA) is the slow one, ~4 min per genotype for the permutation
-# and LOOCV. It caches on a fingerprint of its actual input, so re-runs are
-# instant unless the panel, the z-score or the data changed. Stage 05 is ~1 min
-# for 50,000 permutations per family.
+# Stage 02 (PLS-DA permutation + LOOCV) takes ~4 min per genotype on first run
+# and is cached thereafter (see 02_plsda.R). Stage 05 takes ~1 min.
 # ============================================================================
 
 .here <- function() {
@@ -22,22 +19,22 @@
 HERE <- .here()
 
 STATS_STAGES <- c(
-  "01_sex_zscore_qc.R",     # is the z-score safe here? balance + before/after
-  "02_plsda.R",             # THE HUB: model -> key cytokines
+  "01_sex_zscore_qc.R",     # QC of the within-sex z-score
+  "02_plsda.R",             # PLS-DA, permutation test, key cytokines
   "05_correlations.R",      # cytokine ~ amyloid / morphology
   "06_group_stats.R",       # flicker group comparisons
-  "08_mixed_model.R",       # cross-check: raw values, Sex + (1|litter) in the model
-  "09_corr_selection.R")    # cytokine ~ morphology: key vs most flicker-responsive
+  "08_mixed_model.R",       # sensitivity: mixed model on raw values
+  "09_corr_selection.R")    # correlations under two selection rules
 
 FIGURE_STAGES <- c(
-  "10_fig2.R",              # WT heatmap, PLS-DA scores + violins, loadings
-  "11_fig4.R",              # amyloid bars, cytokine ~ amyloid heatmap
-  "12_fig5.R",              # amyloid ~ morphology, key cytokines ~ morphology
-  "13_supp4.R",             # 5xFAD version of Figure 2
-  "14_supp5.R",             # key cytokine group panels
-  "15_supp6.R",             # cytokine profiling, both genotypes
-  "16_supp7.R",             # WT key cytokines ~ morphology
-  "17_data_folders.R")      # re-file results by topic into data/ (runs last)
+  "10_fig2.R",              # Figure 2: WT heatmap and PLS-DA
+  "11_fig4.R",              # Figure 4: amyloid, cytokine ~ amyloid
+  "12_fig5.R",              # Figure 5: amyloid / cytokines ~ glia
+  "13_supp4.R",             # Supp 4: 5xFAD heatmap and PLS-DA
+  "14_supp5.R",             # Supp 5: key cytokine group comparisons
+  "15_supp6.R",             # Supp 6: most responsive cytokines
+  "16_supp7.R",             # Supp 7: WT cytokines ~ glia
+  "17_data_folders.R")      # results filed by topic (runs last)
 
 what <- commandArgs(trailingOnly = TRUE)
 stages <- if (!length(what)) {

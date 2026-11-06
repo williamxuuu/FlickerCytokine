@@ -1,37 +1,31 @@
 # ============================================================================
-# 02_plsda.R  —  THE CASCADE HUB. Fits the PLS-DA and publishes the key
-# cytokines that every downstream figure selects on. DRAWS NOTHING.
+# 02_plsda.R  —  PLS-DA per genotype, model validation, and key cytokines.
 #
-# WHAT THIS STAGE DECIDES, ONCE, FOR THE WHOLE PIPELINE
+# Fits a two-component PLS-DA (ropls; unit-variance scaling) of flicker group on
+# the sex-z-scored 28-analyte panel, separately for each genotype, and defines
 #
-#   KEY[[genotype]] = the cytokines carrying the most group separation
-#                   = top 3 by |loading| on LV1  +  top 3 by |loading| on LV2
+#   key cytokines = top 3 analytes by |loading| on LV1  +  top 3 on LV2
 #
-# Every later stage reads that from the cache. It is computed here and nowhere
-# else, so no figure can refit the model independently and end up disagreeing
-# with the statistics printed beside it.
+# which the downstream figure stages use for analyte selection. The model is
+# fitted only here; figure stages read the cached result, so every panel uses
+# the same fit as the reported statistics.
 #
-# NOTHING DOWNSTREAM MAY CONTAIN A LITERAL CYTOKINE NAME. A hardcoded analyte
-# list cannot follow the analysis when the panel changes -- IL-5, for instance,
-# is not in the 28-analyte panel at all. Selection flows from this stage.
+# MODEL VALIDATION. Leave-one-out cross-validated (LOOCV) classification
+# accuracy is compared with a null distribution from 1,000 permutations of the
+# group labels: p = (#{permuted accuracy >= observed} + 1) / (B + 1).
+# Loading uncertainty is the SD of each loading across 1,000 refits, each
+# leaving out one randomly chosen animal (loadings are sign-aligned to the full
+# fit first, since PLS components are defined only up to sign).
 #
-# INPUT is the sex-z-scored table (00_setup.R). PLS-DA on raw values would put
-# the sexes' different baselines into the latent variables and the "separation"
-# would partly be sex.
+# NO HYPOTHESIS TESTS ARE RUN ON LATENT-VARIABLE SCORES. The latent variables
+# are constructed to maximise separation between the groups, so testing group
+# differences on them is circular. Score plots are descriptive; inference on
+# the model as a whole comes from the permutation test above.
 #
-# NO STATISTICS ARE RUN ON THE LATENT VARIABLES. The Wood lab asked for this
-# explicitly ("cannot do stats on linked variable", initialComments.md:8): the
-# LVs are fitted to maximise group separation, so testing the groups on them is
-# circular. Model credibility is established the honest way instead, by
-# label-permutation against LOOCV accuracy, and reported in words. The score
-# violins that stages 10/13 draw alongside the scores carry NO p-values and NO
-# significance markers for the same reason.
-#
-# CACHING. The permutation + LOOCV pass costs ~4 min per genotype, so it is
-# cached -- keyed on a fingerprint of the actual input matrix. Change the panel,
-# the z-score, or the data and the fingerprint changes and it recomputes. A
-# cache can therefore never go stale behind your back. Delete the .rds files to
-# force a rebuild.
+# CACHING. The permutation and LOOCV steps take ~4 min per genotype, so they are
+# cached in stats/plsda_<genotype>.rds, keyed on a fingerprint of the input
+# matrix. Any change to the data, panel or transform invalidates the cache.
+# Delete the .rds files to force recomputation.
 # ============================================================================
 
 .here <- function() {
@@ -41,7 +35,7 @@
 source(file.path(.here(), "00_setup.R"))
 suppressPackageStartupMessages({ library(ropls); library(matrixStats) })
 
-N_PERM  <- 1000      # label permutations   (matches Garza et al.)
+N_PERM  <- 1000      # label permutations
 N_LOOCV <- 1000      # leave-one-out resamples for the loading error bars
 N_KEY   <- 3         # top-N per latent variable -> the key cytokines
 set.seed(42)
@@ -96,11 +90,11 @@ for (g in GENOTYPES) {
   # reproducible across runs and the two genotypes' panels read the same way.
   sgn <- vapply(1:2, function(k) if (L[which.max(abs(L[, k])), k] < 0) -1 else 1, numeric(1))
 
-  # --- THE KEY CYTOKINES -----------------------------------------------------
+  # --- key cytokines --------------------------------------------------------
   key_by_lv <- lapply(1:2, function(k) names(sort(abs(L[, k]), decreasing = TRUE))[seq_len(N_KEY)])
   key <- unique(unlist(key_by_lv))
 
-  fingerprint <- digest_like <- paste(
+  fingerprint <- paste(
     g, ncol(X), nrow(X), sprintf("%.10f", sum(X)), sprintf("%.10f", sum(X^2)),
     paste(colnames(X), collapse = ","), sep = "|")
 
@@ -132,14 +126,13 @@ for (g in GENOTYPES) {
 
   cat(sprintf("[02] %-6s LOOCV %.3f vs %.3f chance | permutation p = %.3f%s\n",
               g, cc$obs, 1/3, cc$pperm,
-              if (cc$pperm >= 0.05) "  <- model does NOT beat chance" else ""))
+              if (cc$pperm >= 0.05) "  (not significant)" else ""))
   cat(sprintf("[02]   key LV1: %s\n", paste(key_by_lv[[1]], collapse = ", ")))
   cat(sprintf("[02]   key LV2: %s\n", paste(key_by_lv[[2]], collapse = ", ")))
 }
 
-# --- published for downstream stages -----------------------------------------
-# Downstream code calls KEY[[g]]; it never recomputes a model and never names a
-# cytokine. read_plsda(g) exposes the whole cached fit for the figure stages.
+# --- exported for downstream stages -----------------------------------------
+# Downstream stages use KEY[[g]] / read_plsda(g) rather than refitting.
 read_plsda <- function(g) readRDS(file.path(STATS, sprintf("plsda_%s.rds", g)))
 KEY <- lapply(setNames(GENOTYPES, GENOTYPES), function(g) read_plsda(g)$key)
 

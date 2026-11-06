@@ -1,26 +1,23 @@
 # ============================================================================
-# 08_mixed_model.R  —  sex-controlled mixed model, a CROSS-CHECK on stage 06.
+# 08_mixed_model.R  —  sensitivity analysis: sex modelled rather than removed.
 #
-# Stage 06 handles sex by z-scoring within sex, then pooling. This stage asks
-# the same question the other way, as the Wood lab suggested ("Multiple effects
-# model ... to control for sex", initialComments.md): keep the RAW values and
-# put Sex in the model, with litter as a random intercept because littermates
-# are not independent. See compare_flicker_mixed() in lib/stats_helpers.R.
+# Stage 06 adjusts for sex by z-scoring within sex and pooling. This stage
+# addresses the same question on the RAW values with a linear mixed model:
 #
-# It runs on the RAW table. On the z-scored table Sex is zero by construction,
-# which is why stage 06 dropped this model; here that is the point.
+#   value ~ Flicker + Sex + (1 | litter)
 #
-# Two things only this model can report:
-#   - Flicker x Sex: does the flicker effect itself differ between the sexes?
-#     The z-score cannot see this; pooling averages over it.
-#   - litter: whether litter carries variance at all (the `model` column says
-#     which fit was used).
+# (lme4 / lmerTest; falls back to lm(value ~ Flicker + Sex) when the litter
+# variance is singular or there are fewer than 3 litters -- the `model` column
+# records which was used). The Flicker x Sex interaction, which the z-score
+# approach cannot assess, comes from a separate Flicker * Sex fit; pairwise
+# contrasts are sex-averaged estimated marginal means (emmeans, Tukey). Models
+# are fitted on raw MFI and on log1p(MFI), since MFI is right-skewed;
+# `p_resid_normal` reports a Shapiro-Wilk test on the residuals.
 #
-# Fitted on raw MFI and, as a sensitivity, on log1p(MFI) -- MFI is skewed and
-# a linear model assumes roughly normal residuals (p_resid_normal reports it).
+# Results are written alongside the stage-06 p-values for comparison; no figure
+# depends on this stage.
 #
-# NOTHING DOWNSTREAM READS THIS. It is reported beside stage 06, not instead of
-# it; no figure changes.
+# Outputs: stats/mixed_model_omnibus.csv, stats/mixed_model_posthoc.csv.
 # ============================================================================
 
 .here <- function() {
@@ -43,7 +40,7 @@ for (g in GENOTYPES) {
 om <- do.call(rbind, oms); ph <- do.call(rbind, phs)
 rownames(om) <- NULL; rownames(ph) <- NULL
 
-# beside it, the stage-06 omnibus p on the z-scored table, for direct comparison
+# stage-06 omnibus p (z-score approach), for direct comparison
 z <- rbind(read.csv(file.path(STATS, "group_omnibus_cytokines.csv"), check.names = FALSE),
            read.csv(file.path(STATS, "group_omnibus_amyloid.csv"), check.names = FALSE))
 om$p_zscore_route <- z$p[match(paste(om$subgroup, om$variable),

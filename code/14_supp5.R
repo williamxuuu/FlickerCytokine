@@ -1,17 +1,11 @@
 # ============================================================================
-# 14_supp5.R  —  Supplementary Figure 5: key cytokine group comparisons,
-# A = WT, B = 5xFAD. Styled to match the published supplementary bar panels.
+# 14_supp5.R  —  Supplementary Figure 5: group comparisons of the PLS-DA key
+# cytokines (A = WT, B = 5xFAD).
 #
-# ANALYTES ARE THE PLS-DA KEY CYTOKINES for that genotype, read from the
-# stage-02 cache -- top 3 by |loading| on LV1 and on LV2. This figure replaces
-# the published myeloid panel entirely: G-CSF / GM-CSF / M-CSF / LIF were
-# presented there as a curated biological group, which is not a selection rule
-# the analysis can defend. Whichever analytes carry the separation is.
-#
-# Statistics are stage 06's: Anderson-Darling, then ANOVA + Tukey or
-# Kruskal-Wallis + Dunn(BH), on the sex-z-scored pooled table. Every pairwise
-# comparison is bracketed with its adjusted p, significant or not, as the
-# published panels do.
+# Analytes are each genotype's key cytokines from stage 02 (top 3 by |loading|
+# on LV1 and on LV2). Statistics are those of stage 06 (Anderson-Darling, then
+# ANOVA + Tukey or Kruskal-Wallis + Dunn/BH) on the sex-z-scored table; every
+# pairwise comparison is shown with its adjusted p.
 # ============================================================================
 
 .here <- function() {
